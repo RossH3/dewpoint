@@ -2340,30 +2340,39 @@ setInterval(async () => {
   if (wasPlaying && radar.playing) { await Promise.all(radar.frames.map((f) => layerReady(f.layer, 10000))); play(); }
 }, 5 * 60000);
 
+// Short status note on the map; it clears itself (success after 3 s, problems after 8 s).
+let statusTimer = 0;
+function mapStatus(text, ms = 0) {
+  const el2 = $("loc-status");
+  if (!el2) return;
+  clearTimeout(statusTimer);
+  el2.textContent = text;
+  if (ms) statusTimer = setTimeout(() => { el2.textContent = ""; }, ms);
+}
 // Current location from the browser (Chrome asks the first time).
 $("my-loc").addEventListener("click", () => {
-  const status = $("loc-status");
   if (!radar.map) return;
-  if (!navigator.geolocation) { status.textContent = "This browser can't share your location."; return; }
-  status.textContent = "Finding you…";
+  if (!navigator.geolocation) { mapStatus("This browser can't share your location.", 8000); return; }
+  mapStatus("Finding you…", 20000);
   navigator.geolocation.getCurrentPosition((pos) => {
     radar.here = [+pos.coords.latitude.toFixed(4), +pos.coords.longitude.toFixed(4)];
     const acc = Math.round(pos.coords.accuracy || 0);
     if (radar.hereMarker) radar.hereMarker.setLatLng(radar.here);
     else radar.hereMarker = L.circleMarker(radar.here, { pane: "labels", radius: 7, weight: 3, color: "#ffffff", fillColor: "#d4532b", fillOpacity: 1 }).bindTooltip("You").addTo(radar.map);
-    status.textContent = acc > 1500 ? `Found you (within about ${Math.round(acc / 1609)} mi).` : "Found you.";
+    mapStatus(acc > 1500 ? `Found you (within about ${Math.round(acc / 1609)} mi).` : "Found you.", 3000);
     setView("here");
     $("view-home").setAttribute("aria-pressed", "false");
     updateNearbyRain(true);
   }, (err) => {
-    status.textContent = err.code === 1
+    mapStatus(err.code === 1
       ? "Location is blocked. Allow it from the icon at the left of Chrome's address bar, then try again."
-      : "Couldn't find your location. Try again, or use Set home.";
+      : "Couldn't find your location. Try again, or use Set home.", 8000);
   }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 5 * 60000 });
 });
-$("view-state").addEventListener("click", () => setView("state"));
-$("view-home").addEventListener("click", () => setView("home"));
+$("view-state").addEventListener("click", () => { mapStatus(""); setView("state"); });
+$("view-home").addEventListener("click", () => { mapStatus(""); setView("home"); });
 $("set-home").addEventListener("click", () => {
+  mapStatus("");
   if (!radar.map) return;
   radar.settingHome = !radar.settingHome;
   $("set-home").textContent = radar.settingHome ? "Cancel" : "Set home…";
