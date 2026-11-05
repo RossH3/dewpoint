@@ -274,6 +274,9 @@ button svg { width: 14px; height: 14px; }
 .ol-lines li { display: grid; grid-template-columns: 9.5rem minmax(0, 1fr); gap: 0.75rem; font-size: 0.9375rem; }
 .ol-when { color: var(--ink-2); }
 .ol-lines li.quiet { color: var(--ink-3); font-size: 0.875rem; }
+/* Phones: the pressure reminder moves to the footer. */
+.remember-foot { display: none; }
+@media (max-width: 719px) { .ol-lines li.remember { display: none; } .remember-foot { display: block; } }
 .ol-lines li.quiet .ol-when { color: var(--ink-3); }
 .key-blip { width: 8px; height: 11px; background: var(--drop); border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; clip-path: polygon(50% 0, 100% 60%, 100% 100%, 0 100%, 0 60%); }
 @media (max-width: 420px) { .ol-lines li { grid-template-columns: 7.5rem minmax(0, 1fr); } }
@@ -430,6 +433,7 @@ a { color: var(--accent); }
 
   <footer>
     <p id="source">Forecast from the National Weather Service hourly forecast (api.weather.gov). No account or key needed.</p>
+    <p class="remember-foot">Pressure: low means air rising and spreading out, bringing clouds and rain. High means air sinking and packing down, keeping it clear and dry. Average is 29.92 in; most weather falls between 29.5 and 30.5.</p>
     <p>Chart lines are drawn as smooth curves through the hourly values. The dew point also gets a light 3-hour average, and pressure a 12-hour average that removes its daily tide. Labels and the hourly list show the actual numbers.</p>
     <p>Compare: <a id="link-nws" href="https://www.weather.gov/" target="_blank" rel="noopener">weather.gov hourly graph</a> · <a id="link-wx" href="https://weather.com/" target="_blank" rel="noopener">weather.com hourly</a></p>
   </footer>
@@ -716,7 +720,7 @@ function pressureLines(ps) {
     const t = pp[pp.length - 1].pres - pp[0].pres;
     lines.push({ when: "Then", text: `${t > 0.04 ? "Rising" : t < -0.04 ? "Falling" : "Fairly steady"} through ${fmt(pp[pp.length - 1].startD, { weekday: "long" })}` });
   }
-  lines.push({ when: "Remember", quiet: true, text: "Low = air rising and spreading out: clouds and rain. High = air sinking and packing down: clear and dry. Average is 29.92; most weather falls between 29.5 and 30.5." });
+  lines.push({ when: "Remember", quiet: true, cls: "remember", text: "Low = air rising and spreading out: clouds and rain. High = air sinking and packing down: clear and dry. Average is 29.92; most weather falls between 29.5 and 30.5." });
   return lines;
 }
 
@@ -1409,7 +1413,7 @@ function niceLines(ps) {
 function renderOutlook(ps) {
   const group = (title, lines) => el("div", { class: "ol-group" },
     el("p", { class: "eyebrow" }, title),
-    el("ul", { class: "ol-lines" }, ...lines.map((l) => el("li", { class: l.quiet ? "quiet" : "" }, el("span", { class: "ol-when" }, l.when), el("span", {}, l.text)))));
+    el("ul", { class: "ol-lines" }, ...lines.map((l) => el("li", { class: [l.quiet ? "quiet" : "", l.cls || ""].join(" ").trim() }, el("span", { class: "ol-when" }, l.when), el("span", {}, l.text)))));
   const pl = pressureLines(ps);
   $("outlook").replaceChildren(group("Nice weather", niceLines(ps)));
   $("details").replaceChildren(group("Rain", rainLines(ps)), ...(pl ? [group("Pressure", pl)] : []));
