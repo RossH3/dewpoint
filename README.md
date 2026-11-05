@@ -15,10 +15,17 @@ Bookmark it (⌘D) or, on a phone, use **Share → Add to Home Screen**.
   - **Nice weather:** the next nice days ("Sat – Tue · Beautiful. Sunny, highs 68–72°, dew points 45–54°").
   - **Nearby rain:** where rain is on radar and how it's moving ("Rain 35 mi west (light). Moving northeast at about 30 mph.").
 - **The next 7 days** as a chart: chance of rain across the top, hanging down like falling rain, then the dew point (colored by comfort band, each day's high labeled) with a light temperature line. Where the two lines meet, the air is saturated. Days, "Now" and marks at 6 AM, noon and 6 PM run along the top; weekends are shaded. Hover, or use the arrow keys, for any hour.
+- **Pressure:** a slim strip under the dew point with its own scale, marked with weather-map **H** and **L** at the turning points, plus a Pressure group in the outlook ("Friday afternoon · Low 29.78 in, then rising (clearing)").
 - **Radar:** a zoomable street map with the latest scan. **Play loop** animates the last 50 minutes. **State**, **Home**, **My location** and **Set home…** move the map and the nearby-rain check.
 - **Hour by hour:** sky, chance of rain, humidity, and the dew point joined to the temperature. Nice days get a "Nice day" tag.
 
 Comfort bands: Dry (below 50°), Comfortable (50–59°), Sticky (60–64°), Muggy (65–69°), Oppressive (70–74°), Miserable (75° and up).
+
+## Pressure
+
+Falling pressure usually means a low or front is coming: air rises, spreads out and cools into clouds and rain. Rising pressure means air is sinking and packing down, which clears and dries things out.
+
+Sea-level pressure comes from Open-Meteo, because the NWS hourly forecast doesn't include it. Pressure also has a daily "tide" of about ±0.04 inHg, highest mid-morning and lowest mid-afternoon. The page averages it out over 12 hours before judging trends ("rising", "falling fast") and finding highs and lows. A high or low only counts once pressure has turned around by 0.06 inHg (`PRES_TURN`). The chart draws the smoothed line, with the actual readings faint behind it.
 
 ## The nice meter
 
@@ -51,3 +58,15 @@ While the tab is visible, the forecast refreshes every 30 minutes and the radar 
 ## Files
 
 Everything is in `index.html`. The radar code is the second `<script>` block. You can also open it with `?lat=..&lon=..&name=..` to show a place without saving it.
+
+## Status
+
+**Radar motion: done (v1), being monitored.** The loop morphs between scans using per-patch motion. Known limits:
+
+- Motion is measured only within about 240 miles of home. Rain farther out uses the overall motion.
+- Patches are about 15 miles across, so small storms moving against the flow, or rain that pops up or dies within one patch, can still look a little soft or ghosted mid-morph.
+- The motion comes from one 30-minute comparison, so a system that speeds up, slows down or turns during the loop is followed only approximately.
+- In-between frames are drawn at slightly lower resolution than the tiles, so they look a touch softer than a paused frame.
+- Very wide views, and devices set to reduce motion, use the simpler drift-and-crossfade instead.
+- It never invents rain: every in-between frame comes only from the two real scans on either side.
+
