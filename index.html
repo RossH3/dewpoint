@@ -188,13 +188,13 @@ button svg { width: 14px; height: 14px; }
 .chart .day.wknd { font-weight: 700; }
 .chart .day.now { font-weight: 700; fill: var(--accent); }
 .chart .axis-title { fill: var(--ink-3); font-size: 11px; }
+/* Readout: one slim line pinned above the chart, never over the lines. */
 .tip {
-  position: absolute; top: 0; pointer-events: none; z-index: 2;
-  background: var(--bg); color: var(--ink);
-  border: 1px solid var(--rule); border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-  padding: 0.5rem 0.7rem; font-size: 0.8125rem; min-width: 10.5rem;
+  position: absolute; left: 0; right: 0; bottom: 100%; pointer-events: none; z-index: 2;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.15rem 0.9rem;
+  background: var(--bg); color: var(--ink); padding: 0.2rem 0; font-size: 0.8125rem;
 }
+.tip > * { margin: 0 !important; }
 .tip .when { color: var(--ink-3); font-size: 0.75rem; margin-bottom: 0.2rem; }
 .tip .row { display: flex; align-items: center; gap: 0.45rem; white-space: nowrap; }
 .tip .row b { font-weight: 700; font-variant-numeric: tabular-nums; min-width: 2.2em; }
@@ -1284,11 +1284,9 @@ function showPoint(i) {
     el("div", { class: "extra" }, extras.join(" · ")),
   ].filter(Boolean));
   tip.hidden = false;
-  const tw = tip.offsetWidth;
-  let left = cx + 14;
-  if (left + tw > s.W - 4) left = cx - 14 - tw;
-  tip.style.left = `${Math.max(0, left)}px`;
-  tip.style.top = `${s.top}px`;
+  // On touch, the readout clears itself after a few seconds.
+  clearTimeout(tipTimer);
+  if (lastPointer === "touch") tipTimer = setTimeout(hidePoint, 4000);
 }
 function hidePoint() {
   const s = chartState;
@@ -1304,8 +1302,10 @@ function indexAt(clientX) {
   return Math.round(((px - s.m.l) / s.pw) * (s.ps.length - 1));
 }
 const chartEl = $("chart");
-chartEl.addEventListener("pointermove", (e) => { if (chartState) showPoint(indexAt(e.clientX)); });
-chartEl.addEventListener("pointerdown", (e) => { if (chartState) showPoint(indexAt(e.clientX)); });
+let tipTimer = 0, lastPointer = "mouse";
+// Mouse: follows the pointer. Touch: only on a deliberate tap, not while scrolling past.
+chartEl.addEventListener("pointermove", (e) => { lastPointer = e.pointerType; if (chartState && e.pointerType === "mouse") showPoint(indexAt(e.clientX)); });
+chartEl.addEventListener("pointerup", (e) => { lastPointer = e.pointerType; if (chartState && e.pointerType !== "mouse") showPoint(indexAt(e.clientX)); });
 chartEl.addEventListener("pointerleave", (e) => { if (e.pointerType === "mouse") hidePoint(); });
 chartEl.addEventListener("blur", hidePoint);
 chartEl.addEventListener("keydown", (e) => {
