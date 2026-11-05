@@ -26,7 +26,11 @@ Each daytime hour (10 AM–6 PM) starts at 100 points and loses points for tempe
 
 ## How the radar works
 
-Radar tiles come as colored images. Each color maps to one rain intensity (dBZ) in the NWS color table, so the page decodes the colors back to intensities, drops clear-air noise and lone speckles, smooths the result and redraws it in TV-style colors. Loop frames are fetched by exact scan time, so they never repeat or arrive out of order. While the loop plays, each frame drifts along the measured rain motion and crossfades into the next, so rain glides between the 5-minute scans instead of jumping.
+Radar tiles come as colored images. Each color maps to one rain intensity (dBZ) in the NWS color table, so the page decodes the colors back to intensities, drops clear-air noise and lone speckles, smooths the result and redraws it in TV-style colors. Loop frames are fetched by exact scan time, so they never repeat or arrive out of order. While the loop plays, the page morphs between scans instead of flipping frames:
+
+1. **Motion field.** It compares the latest scan with the one 30 minutes earlier, around home (about 240 miles across). It finds the overall motion, then refines it for each ~15-mile patch, searching near the overall motion and lightly smoothing neighbors so one noisy patch can't run off on its own. Patches without rain use the overall motion.
+2. **Morph.** A single canvas over the map draws in-between moments about 30 times a second. For a moment partway between two scans, each pixel looks back along its patch's motion into the earlier scan and ahead into the later one, and blends the two. Storms moving different ways each move on their own, and rain that grows or fades blends smoothly.
+3. **Fallbacks.** Panning, zooming or pausing switches back to the crisp tiles. Very wide views, and devices set to reduce motion, use a simpler drift-and-crossfade.
 
 For the nearby-rain line, the page reads the radar around home (about 240 miles across) for the latest scan and the one 30 minutes earlier. It finds the nearest rain of 20 dBZ or more, then slides the older scan to find the shift that best matches the newer one. That shift gives direction and speed, and an arrival time if the rain is headed your way.
 

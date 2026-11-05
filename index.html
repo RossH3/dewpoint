@@ -253,6 +253,7 @@ button svg { width: 14px; height: 14px; }
 .play::before { content: ""; width: 0; height: 0; border-left: 10px solid currentColor; border-top: 6px solid transparent; border-bottom: 6px solid transparent; }
 .play[aria-pressed="true"]::before { width: 3px; height: 12px; border: 0; background: currentColor; box-shadow: 5px 0 0 currentColor; margin-right: 5px; }
 .play[disabled]::before { opacity: 0.5; }
+.radar-anim { position: absolute; left: 0; top: 0; }
 /* Crossfade between radar frames */
 .leaflet-radar-pane > .leaflet-layer { transition: opacity 0.3s linear; will-change: transform, opacity; }
 @media (prefers-reduced-motion: reduce) { .leaflet-radar-pane > .leaflet-layer { transition: none; } }
@@ -1568,6 +1569,49 @@ async function analyzeNearby([lat, lon]) {
       result.mph = mph;
       result.vel = { east: pxPerMin.x * metersPerPx, north: -pxPerMin.y * metersPerPx };   // meters per minute
       result.toward = compass(Math.atan2(pxPerMin.x, -pxPerMin.y) * 180 / Math.PI);
+      // Per-patch motion: refine the overall shift for each ~24 km patch (8×8 cells),
+      // searching near the overall motion and gently preferring it so noisy patches stay calm.
+      const B = 8, GB = Math.floor(G / B), Rp = 4;
+      const raw = new Float32Array(GB * GB * 2);
+      for (let by = 0; by < GB; by++) for (let bx = 0; bx < GB; bx++) {
+        let rain = 0;
+        for (let y = by * B; y < by * B + B; y++) for (let x = bx * B; x < bx * B + B; x++) if (a[y * G + x] > 0) rain++;
+        let fx = bdx, fy = bdy;
+        if (rain >= 6) {
+          let bestP = Infinity;
+          for (let dy = bdy - Rp; dy <= bdy + Rp; dy++) for (let dx = bdx - Rp; dx <= bdx + Rp; dx++) {
+            let s = 0, m = 0;
+            for (let y = by * B; y < by * B + B; y++) {
+              const yy = y + dy;
+              if (yy < 0 || yy >= G) continue;
+              for (let x = bx * B; x < bx * B + B; x++) {
+                const xx = x + dx;
+                if (xx < 0 || xx >= G) continue;
+                const va = a[y * G + x], vb = b[yy * G + xx];
+                if (va || vb) { s += Math.abs(va - vb); m++; }
+              }
+            }
+            const score = m ? s / m + 0.4 * Math.hypot(dx - bdx, dy - bdy) : Infinity;
+            if (score < bestP) { bestP = score; fx = dx; fy = dy; }
+          }
+        }
+        raw[(by * GB + bx) * 2] = fx;
+        raw[(by * GB + bx) * 2 + 1] = fy;
+      }
+      // Smooth each patch with its neighbours, then store as z8 pixels per minute.
+      const v = new Float32Array(raw.length);
+      for (let by = 0; by < GB; by++) for (let bx = 0; bx < GB; bx++) {
+        let sx = 0, sy = 0, w = 0;
+        for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) {
+          const X = bx + i, Y = by + j;
+          if (X < 0 || Y < 0 || X >= GB || Y >= GB) continue;
+          const wt = i || j ? 1 : 2;
+          sx += raw[(Y * GB + X) * 2] * wt; sy += raw[(Y * GB + X) * 2 + 1] * wt; w += wt;
+        }
+        v[(by * GB + bx) * 2] = (sx / w) * C / 30;
+        v[(by * GB + bx) * 2 + 1] = (sy / w) * C / 30;
+      }
+      result.flow = { ox: (tx - 1) * 256, oy: (ty - 1) * 256, size: B * C, n: GB, v, gx: pxPerMin.x, gy: pxPerMin.y };
       // Arrival: when does any rain point, moved along that motion, come within 2 km of home?
       if (result.state === "near" && mph >= 5) {
         const r2 = (2000 / metersPerPx) ** 2;
@@ -1659,7 +1703,10 @@ function showFrame(i, animate = false) {
   } else {
     radar.frames.forEach((f, k) => { stopAnims(f); f.layer.setOpacity(k === radar.frame ? RADAR.opacity : 0); });
   }
-  const off = radar.frames[radar.frame].off, latest = off === 0;
+  setTimeLabel(radar.frame);
+}
+function setTimeLabel(k) {
+  const off = radar.frames[k].off, latest = off === 0;
   const t = $("radar-time");
   t.textContent = radar.valid ? clock(new Date(radar.valid.getTime() - off * 60000)) : latest ? "Latest" : `−${off} min`;
   t.classList.toggle("old", !latest);
@@ -1713,7 +1760,21 @@ async function startRadar() {
   const map = L.map("map", { zoomControl: true, attributionControl: false, minZoom: 5, maxZoom: 14, zoomSnap: 0.5 });
   radar.map = map;
   map.createPane("radar").style.zIndex = 350;
+  map.createPane("radarAnim").style.zIndex = 352;
+  map.getPane("radarAnim").style.pointerEvents = "none";
   map.createPane("labels").style.zIndex = 450;
+  // While you pan or zoom, show the crisp tiles; pick the smooth loop back up afterwards.
+  map.on("movestart zoomstart", () => {
+    if (!player.on) return;
+    stopPlayer();
+    player.resume = true;
+    showFrame(radar.frame);
+  });
+  map.on("moveend", () => {
+    if (!player.resume) return;
+    player.resume = false;
+    if (radar.playing) setTimeout(() => { if (radar.playing && !player.on) play(); }, 400);
+  });
   map.getPane("labels").style.pointerEvents = "none";
   const tone = darkMode() ? "Dark" : "Light";
   const esri = (layer, pane) => L.tileLayer(`https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_${tone}_Gray_${layer}/MapServer/tile/{z}/{y}/{x}`, { maxZoom: 16, pane });
@@ -1749,6 +1810,7 @@ async function updateNearbyRain(force = false) {
   try {
     const r = await analyzeNearby(focusPoint());
     radar.motion = r.vel || null;
+    radar.flow = r.flow || null;
     const text = describeNearby(r);
     const quiet = !(r.state === "here" || (r.state === "near" && r.distMi <= 60));
     for (const id of ["radar-near", "rain-near"]) {
@@ -1776,6 +1838,128 @@ function buildFrames(loop) {
   radar.frames = (loop ? OFFSETS : [0]).map((off) => ({ off, layer: makeRainLayer(layerAt(off)).addTo(radar.map) }));
   showFrame(radar.frames.length - 1);
 }
+// ---- Smooth loop player: morph between scans along per-patch motion ---------
+// While the loop plays, one canvas over the map replaces the tile frames. For a moment a
+// fraction t of the way from scan k to scan k+1, each pixel looks back along its patch's motion
+// into scan k and ahead into scan k+1, and blends the two. Pan, zoom or pause → back to tiles.
+const PLAYER_MAX_PX = 260000, PLAYER_MAX_TILES = 36, PLAYER_MIN_MS = 33;
+const player = { on: false, raf: 0, t0: 0, last: 0, k: -1, buildId: 0, resume: false, canvas: null };
+
+function flowAt(f, wx, wy) {        // z8 world pixels → motion in z8 px per minute
+  if (!f) return [0, 0];
+  const fx = (wx - f.ox) / f.size - 0.5, fy = (wy - f.oy) / f.size - 0.5;
+  if (fx < -1 || fy < -1 || fx > f.n || fy > f.n) return [f.gx, f.gy];
+  const cx = Math.min(f.n - 1, Math.max(0, fx)), cy = Math.min(f.n - 1, Math.max(0, fy));
+  const x0 = Math.floor(cx), y0 = Math.floor(cy), x1 = Math.min(f.n - 1, x0 + 1), y1 = Math.min(f.n - 1, y0 + 1);
+  const ax = cx - x0, ay = cy - y0, g = (X, Y, c) => f.v[(Y * f.n + X) * 2 + c];
+  const lerp = (c) => (g(x0, y0, c) * (1 - ax) + g(x1, y0, c) * ax) * (1 - ay) + (g(x0, y1, c) * (1 - ax) + g(x1, y1, c) * ax) * ay;
+  return [lerp(0), lerp(1)];
+}
+function sampleU8(d, W, H, x, y) {
+  if (x < 0) x = 0; else if (x > W - 1.001) x = W - 1.001;
+  if (y < 0) y = 0; else if (y > H - 1.001) y = H - 1.001;
+  const x0 = x | 0, y0 = y | 0, fx = x - x0, fy = y - y0, i = y0 * W + x0;
+  const a = d[i], b = d[i + 1], c = d[i + W], e = d[i + W + 1];
+  return ((a + (b - a) * fx) * (1 - fy) + (c + (e - c) * fx) * fy) / 3;
+}
+async function buildPlayer() {
+  const map = radar.map, id = ++player.buildId;
+  const z = map.getZoom(), dz = Math.min(Math.floor(z), DATA_Z), sc = Math.pow(2, dz - z);
+  const size = map.getSize(), pb = map.getPixelBounds();
+  const tx0 = Math.floor(pb.min.x * sc / 256), tx1 = Math.floor(pb.max.x * sc / 256);
+  const ty0 = Math.floor(pb.min.y * sc / 256), ty1 = Math.floor(pb.max.y * sc / 256);
+  const cols = tx1 - tx0 + 1, rows = ty1 - ty0 + 1;
+  if (cols * rows > PLAYER_MAX_TILES) return false;
+  const W = cols * 256, H = rows * 256;
+  const fields = await Promise.all(radar.frames.map(async (f) => {
+    const data = new Uint8Array(W * H);
+    const parts = [];
+    for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) parts.push(loadField(layerAt(f.off), dz, tx, ty).then((t) => [tx, ty, t]));
+    for (const [tx, ty, t] of await Promise.all(parts)) {
+      if (!t) continue;
+      const ox = (tx - tx0) * 256, oy = (ty - ty0) * 256;
+      for (let y = 0; y < 256; y++) for (let x = 0; x < 256; x++) data[(oy + y) * W + ox + x] = Math.min(255, Math.round(t[y * 256 + x] * 3));
+    }
+    return data;
+  }));
+  if (id !== player.buildId || !radar.playing) return false;   // the map moved or playback stopped meanwhile
+
+  const scale = Math.min(1, Math.sqrt(PLAYER_MAX_PX / (size.x * size.y)));
+  const cw = Math.max(1, Math.round(size.x * scale)), ch = Math.max(1, Math.round(size.y * scale));
+  if (!player.canvas) {
+    player.canvas = el("canvas", { class: "radar-anim" });
+    map.getPane("radarAnim").append(player.canvas);
+  }
+  const cv = player.canvas;
+  cv.width = cw; cv.height = ch;
+  cv.style.width = size.x + "px"; cv.style.height = size.y + "px";
+  L.DomUtil.setPosition(cv, map.containerPointToLayerPoint([0, 0]));
+
+  // Per canvas pixel: where it sits in the data grid, and its patch's motion per 5-minute frame.
+  const n = cw * ch, lx = new Float32Array(n), ly = new Float32Array(n), vx = new Float32Array(n), vy = new Float32Array(n);
+  const to8 = Math.pow(2, DATA_Z - dz), flow = radar.flow;
+  for (let j = 0; j < ch; j++) for (let i = 0; i < cw; i++) {
+    const k = j * cw + i;
+    const wx = (pb.min.x + (i + 0.5) / scale) * sc, wy = (pb.min.y + (j + 0.5) / scale) * sc;
+    lx[k] = wx - tx0 * 256; ly[k] = wy - ty0 * 256;
+    const [fx, fy] = flowAt(flow, wx * to8, wy * to8);
+    vx[k] = fx * 5 / to8; vy[k] = fy * 5 / to8;
+  }
+  Object.assign(player, { fields, W, H, cw, ch, lx, ly, vx, vy, ctx: cv.getContext("2d"), img: cv.getContext("2d").createImageData(cw, ch) });
+  return true;
+}
+function drawPlayer(k, t) {
+  const { fields, W, H, lx, ly, vx, vy, img } = player, px = img.data, A = fields[k], Bn = fields[k + 1];
+  const op = RADAR.opacity;
+  for (let i = 0, o = 0; i < lx.length; i++, o += 4) {
+    let v;
+    if (!t || !Bn) v = sampleU8(A, W, H, lx[i], ly[i]);
+    else {
+      const a = sampleU8(A, W, H, lx[i] - t * vx[i], ly[i] - t * vy[i]);
+      const b = sampleU8(Bn, W, H, lx[i] + (1 - t) * vx[i], ly[i] + (1 - t) * vy[i]);
+      v = a + (b - a) * t;
+    }
+    if (v < 13) { px[o + 3] = 0; continue; }
+    const q = Math.min(LUT_MAX, Math.round(v * LUT_STEP)) * 4;
+    px[o] = RAIN_LUT[q]; px[o + 1] = RAIN_LUT[q + 1]; px[o + 2] = RAIN_LUT[q + 2]; px[o + 3] = RAIN_LUT[q + 3] * op;
+  }
+  player.ctx.putImageData(img, 0, 0);
+}
+function playerLoop(now) {
+  if (!player.on) return;
+  player.raf = requestAnimationFrame(playerLoop);
+  if (now - player.last < PLAYER_MIN_MS) return;
+  player.last = now;
+  const N = player.fields.length, FR = RADAR.frameMs, moving = (N - 1) * FR, cycle = moving + RADAR.holdMs;
+  const e = Math.max(0, now - player.t0) % cycle;   // the first animation timestamp can precede t0
+  let k = N - 1, t = 0;
+  if (e < moving) { k = Math.floor(e / FR); t = (e % FR) / FR; }
+  if (k === N - 1 && player.k === k && player.drewHold) return;   // holding on the latest: nothing to redraw
+  drawPlayer(k, t);
+  player.drewHold = k === N - 1;
+  if (k !== player.k) { player.k = k; radar.frame = k; setTimeLabel(k); }
+}
+async function startPlayer() {
+  if (reduceMotion() || radar.frames.length < 2) return false;
+  if (!(await buildPlayer())) return false;
+  clearTimeout(radar.timer);
+  radar.frames.forEach((f) => { stopAnims(f); f.layer.setOpacity(0); });
+  player.canvas.style.display = "";
+  Object.assign(player, { on: true, t0: performance.now(), last: 0, k: -1, drewHold: false });
+  player.raf = requestAnimationFrame(playerLoop);
+  return true;
+}
+function stopPlayer() {
+  player.on = false;
+  player.buildId++;
+  cancelAnimationFrame(player.raf);
+  if (player.canvas) player.canvas.style.display = "none";
+}
+// Start the smooth player, or fall back to the simple drift-and-crossfade loop.
+async function play() {
+  if (!(await startPlayer()) && radar.playing && !player.on) tick();
+}
+
 async function loadLoop() {
   if (radar.frames.length > 1) return;
   const btn = $("radar-play");
@@ -1794,8 +1978,11 @@ setInterval(async () => {
   const v = await refreshScan();
   if (!v || v.getTime() === before) return;
   radar.valid = v;
+  const wasPlaying = player.on;
+  stopPlayer();
   buildFrames(radar.frames.length > 1);
-  updateNearbyRain(true);
+  await updateNearbyRain(true);
+  if (wasPlaying && radar.playing) { await Promise.all(radar.frames.map((f) => layerReady(f.layer, 10000))); play(); }
 }, 5 * 60000);
 
 // Current location from the browser (Chrome asks the first time).
@@ -1834,8 +2021,8 @@ $("radar-play").addEventListener("click", async () => {
   radar.playing = !radar.playing;
   $("radar-play").textContent = radar.playing ? "Pause" : "Play loop";
   $("radar-play").setAttribute("aria-pressed", String(radar.playing));
-  if (!radar.playing) showFrame(radar.frame);   // settle the paused frame in its true position
-  tick();
+  if (radar.playing) play();
+  else { stopPlayer(); clearTimeout(radar.timer); showFrame(radar.frame); }   // settle on the real scan
 });
 if (typeof current !== "undefined" && current) updateNearbyRain();
 // Start once there's a place; re-center when it changes.
