@@ -14,7 +14,7 @@ Bookmark it (⌘D) or, on a phone, use **Share → Add to Home Screen**.
   - **Rain:** each stretch of 30%+ chance in the next 3 days ("Tonight · 1–5 AM, up to 55%"), a muted "Brief chances" line for short blips, then when it dries out.
   - **Nice weather:** the next nice days ("Sat – Tue · Beautiful. Sunny, highs 68–72°, dew points 45–54°").
   - **Nearby rain:** where rain is on radar and how it's moving ("Rain 35 mi west (light). Moving northeast at about 30 mph.").
-- **The next 7 days** as a chart: chance of rain across the top, hanging down like falling rain, then the dew point (colored by comfort band, each day's high labeled) with a light temperature line. Where the two lines meet, the air is saturated. Weekends are shaded, with marks at 6 AM, noon and 6 PM. Hover, or use the arrow keys, for any hour.
+- **The next 7 days** as a chart: chance of rain across the top, hanging down like falling rain, then the dew point (colored by comfort band, each day's high labeled) with a light temperature line. Where the two lines meet, the air is saturated. Days, "Now" and marks at 6 AM, noon and 6 PM run along the top; weekends are shaded. Hover, or use the arrow keys, for any hour.
 - **Radar:** a zoomable street map with the latest scan. **Play loop** animates the last 50 minutes. **State**, **Home**, **My location** and **Set home…** move the map and the nearby-rain check.
 - **Hour by hour:** sky, chance of rain, humidity, and the dew point joined to the temperature. Nice days get a "Nice day" tag.
 
@@ -26,7 +26,7 @@ Each daytime hour (10 AM–6 PM) starts at 100 points and loses points for tempe
 
 ## How the radar works
 
-Radar tiles come as colored images. Each color maps to one rain intensity (dBZ) in the NWS color table, so the page decodes the colors back to intensities, drops clear-air noise and lone speckles, smooths the result and redraws it in TV-style colors. Loop frames are fetched by exact scan time, so they never repeat or arrive out of order, and they crossfade.
+Radar tiles come as colored images. Each color maps to one rain intensity (dBZ) in the NWS color table, so the page decodes the colors back to intensities, drops clear-air noise and lone speckles, smooths the result and redraws it in TV-style colors. Loop frames are fetched by exact scan time, so they never repeat or arrive out of order. While the loop plays, each frame drifts along the measured rain motion and crossfades into the next, so rain glides between the 5-minute scans instead of jumping.
 
 For the nearby-rain line, the page reads the radar around home (about 240 miles across) for the latest scan and the one 30 minutes earlier. It finds the nearest rain of 20 dBZ or more, then slides the older scan to find the shift that best matches the newer one. That shift gives direction and speed, and an arrival time if the rain is headed your way.
 

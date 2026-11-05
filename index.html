@@ -177,6 +177,7 @@ button svg { width: 14px; height: 14px; }
 .chart .lbl { fill: var(--ink); font-weight: 700; font-size: 13px; }
 .chart .day { fill: var(--ink); font-weight: 600; font-size: 12.5px; }
 .chart .day.wknd { font-weight: 700; }
+.chart .day.now { font-weight: 700; fill: var(--accent); }
 .chart .axis-title { fill: var(--ink-3); font-size: 11px; }
 .tip {
   position: absolute; top: 0; pointer-events: none; z-index: 2;
@@ -253,7 +254,7 @@ button svg { width: 14px; height: 14px; }
 .play[aria-pressed="true"]::before { width: 3px; height: 12px; border: 0; background: currentColor; box-shadow: 5px 0 0 currentColor; margin-right: 5px; }
 .play[disabled]::before { opacity: 0.5; }
 /* Crossfade between radar frames */
-.leaflet-radar-pane > .leaflet-layer { transition: opacity 0.45s linear; }
+.leaflet-radar-pane > .leaflet-layer { transition: opacity 0.3s linear; will-change: transform, opacity; }
 @media (prefers-reduced-motion: reduce) { .leaflet-radar-pane > .leaflet-layer { transition: none; } }
 .radar-time { font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; min-width: 4.5rem; }
 .radar-time.old { color: var(--ink-3); font-weight: 500; }
@@ -801,12 +802,13 @@ function renderChart() {
   const host = $("chart");
   const W = Math.max(280, $("chart-wrap").clientWidth);
   const narrow = W < 520;
-  const m = { t: 18, r: 14, l: 42 };
-  const dewH = narrow ? 150 : 190, gapH = 30, rainH = narrow ? 56 : 68, todH = 20, axisH = 24;
-  const H = m.t + 4 + rainH + gapH + dewH + todH + axisH;
+  const m = { t: 0, r: 14, l: 42 };
+  const dewH = narrow ? 150 : 190, gapH = 30, rainH = narrow ? 56 : 68;
+  // Top to bottom: day labels, time-of-day marks, rain (hanging down), dew point.
+  const dayY = 15, todY = 34, H = 46 + rainH + gapH + dewH + 12;
   const pw = W - m.l - m.r;
   // Rain on top, hanging down from the top edge like it's falling; dew point below.
-  const rainTop = m.t + 4, rainBottom = rainTop + rainH, dewTop = rainBottom + gapH, dewBottom = dewTop + dewH;
+  const rainTop = 46, rainBottom = rainTop + rainH, dewTop = rainBottom + gapH, dewBottom = dewTop + dewH;
   host.setAttribute("viewBox", `0 0 ${W} ${H}`);
   host.setAttribute("height", H);
   host.replaceChildren();
@@ -846,10 +848,11 @@ function renderChart() {
     const xa = x(ps[d.first].startD), xb = x(ps[d.last].startD);
     const x0 = i === 0 ? m.l : xa, x1 = i === days.length - 1 ? m.l + pw : Math.min(m.l + pw, xb + step);
     const wk = isWeekend(d.d);
-    if (wk) host.append(svg("rect", { x: x0, y: rainTop, width: Math.max(0, x1 - x0), height: dewBottom - rainTop, fill: "var(--weekend)" }));
+    if (wk) host.append(svg("rect", { x: x0, y: 0, width: Math.max(0, x1 - x0), height: dewBottom, fill: "var(--weekend)" }));
     if (i > 0) host.append(svg("line", { x1: xa, x2: xa, y1: rainTop, y2: dewBottom, stroke: "var(--grid)", "stroke-width": 1, "shape-rendering": "crispEdges" }));
     if (x1 - x0 < 30) return;
-    const t = svg("text", { x: (x0 + x1) / 2, y: H - 8, "text-anchor": "middle", class: "day" + (wk ? " wknd" : "") });
+    if ((x0 + x1) / 2 < m.l + 50) return;   // leave room for "Now"
+    const t = svg("text", { x: (x0 + x1) / 2, y: dayY, "text-anchor": "middle", class: "day" + (wk ? " wknd" : "") });
     t.textContent = (x1 - x0 < 52 ? fmt(d.d, { weekday: "short" }) : dayShort(d.d));
     host.append(t);
   });
@@ -857,7 +860,9 @@ function renderChart() {
   // Time of day: faint guides at 6 am, noon and 6 pm, with a sun at noon and a moon at midnight.
   const dayW = step * 24;
   const showSix = dayW >= 90;
-  const todY = dewBottom + 12;
+  const nowT = svg("text", { x: m.l, y: dayY, class: "day now" });
+  nowT.textContent = "Now";
+  host.append(nowT);
   for (const p of ps) {
     const hr = +fmt(p.startD, { hour: "numeric", hourCycle: "h23" });
     if (hr !== 0 && hr !== 6 && hr !== 12 && hr !== 18) continue;
@@ -940,9 +945,6 @@ function renderChart() {
     t.textContent = `${v}%`;
     host.append(t);
   }
-  const rt = svg("text", { x: m.l + pw, y: rainTop - 8, "text-anchor": "end", class: "axis-title" });
-  rt.textContent = "Chance of rain";
-  host.append(rt);
   const bw = Math.max(1, Math.min(24, step - 1));
   for (const p of ps) {
     if (p.pop <= 0) continue;
@@ -977,7 +979,7 @@ function renderChart() {
   const cross = svg("line", { y1: rainTop, y2: dewBottom, stroke: "var(--ink-3)", "stroke-width": 1, visibility: "hidden", "shape-rendering": "crispEdges" });
   const dotD = svg("circle", { r: 5, stroke: "var(--bg)", "stroke-width": 2, visibility: "hidden" });
   host.append(cross, dotD);
-  chartState = { ps, x, y, W, m, pw, cross, dotD, index: null };
+  chartState = { ps, x, y, W, m, pw, cross, dotD, index: null, top: rainTop };
 }
 
 function showPoint(i) {
@@ -1010,7 +1012,7 @@ function showPoint(i) {
   let left = cx + 14;
   if (left + tw > s.W - 4) left = cx - 14 - tw;
   tip.style.left = `${Math.max(0, left)}px`;
-  tip.style.top = `${s.m.t}px`;
+  tip.style.top = `${s.top}px`;
 }
 function hidePoint() {
   const s = chartState;
@@ -1564,6 +1566,7 @@ async function analyzeNearby([lat, lon]) {
       const pxPerMin = { x: bdx * C / 30, y: bdy * C / 30 };
       const mph = Math.hypot(pxPerMin.x, pxPerMin.y) * metersPerPx * 60 / 1609.34;
       result.mph = mph;
+      result.vel = { east: pxPerMin.x * metersPerPx, north: -pxPerMin.y * metersPerPx };   // meters per minute
       result.toward = compass(Math.atan2(pxPerMin.x, -pxPerMin.y) * 180 / Math.PI);
       // Arrival: when does any rain point, moved along that motion, come within 2 km of home?
       if (result.state === "near" && mph >= 5) {
@@ -1615,10 +1618,47 @@ function getHome() {
 const darkMode = () => document.documentElement.dataset.theme === "dark" ||
   (document.documentElement.dataset.theme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
 
-function showFrame(i) {
+// Smooth playback: while the loop plays, each frame drifts along the measured rain motion
+// (half a frame's worth before and after its scan time) and crossfades into the next, so rain
+// glides between the 5-minute scans instead of jumping.
+const FADE_MS = 380;
+const reduceMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+function stopAnims(f) {
+  if (f.move) f.move.cancel();
+  if (f.fade) f.fade.cancel();
+  f.move = f.fade = null;
+}
+function driftPx() {
+  if (!radar.motion || !radar.map) return [0, 0];
+  const lat = radar.map.getCenter().lat * Math.PI / 180;
+  const mpp = 156543.03 * Math.cos(lat) / Math.pow(2, radar.map.getZoom());
+  return [radar.motion.east * 5 / mpp, -radar.motion.north * 5 / mpp];   // pixels per 5-minute frame
+}
+function animateStep(from, to) {
+  const o = RADAR.opacity, [dx, dy] = driftPx();
+  const fOut = radar.frames[from], fIn = radar.frames[to];
+  const latest = to === radar.frames.length - 1;
+  const D = latest ? RADAR.holdMs : RADAR.frameMs;
+  const elOut = fOut.layer.getContainer(), elIn = fIn.layer.getContainer();
+  // Outgoing frame keeps drifting while it fades out.
+  if (fOut.fade) fOut.fade.cancel();
+  fOut.fade = elOut.animate([{ opacity: getComputedStyle(elOut).opacity }, { opacity: 0 }], { duration: FADE_MS, fill: "forwards" });
+  // Incoming frame fades in and drifts through its scan time (the latest settles at its true spot).
+  stopAnims(fIn);
+  const start = `translate(${(-dx / 2).toFixed(1)}px, ${(-dy / 2).toFixed(1)}px)`;
+  const end = latest ? "translate(0px, 0px)" : `translate(${(dx / 2).toFixed(1)}px, ${(dy / 2).toFixed(1)}px)`;
+  fIn.move = elIn.animate([{ transform: start }, { transform: end }], { duration: latest ? RADAR.frameMs / 2 + FADE_MS : D + FADE_MS, easing: "linear", fill: "forwards" });
+  fIn.fade = elIn.animate([{ opacity: 0 }, { opacity: o }], { duration: FADE_MS, fill: "forwards" });
+}
+function showFrame(i, animate = false) {
   if (!radar.frames.length) return;
+  const from = radar.frame;
   radar.frame = (i + radar.frames.length) % radar.frames.length;
-  radar.frames.forEach((f, k) => f.layer.setOpacity(k === radar.frame ? RADAR.opacity : 0));
+  if (animate && radar.frames.length > 1 && !reduceMotion() && radar.frames[from]) {
+    animateStep(from, radar.frame);
+  } else {
+    radar.frames.forEach((f, k) => { stopAnims(f); f.layer.setOpacity(k === radar.frame ? RADAR.opacity : 0); });
+  }
   const off = radar.frames[radar.frame].off, latest = off === 0;
   const t = $("radar-time");
   t.textContent = radar.valid ? clock(new Date(radar.valid.getTime() - off * 60000)) : latest ? "Latest" : `−${off} min`;
@@ -1632,7 +1672,7 @@ function tick() {
     // Don't step onto a frame that's still drawing (after a pan or zoom); wait up to 3 s for it.
     const next = radar.frames[(radar.frame + 1) % radar.frames.length];
     if (next.layer.isLoading && next.layer.isLoading() && waited < 3000) { radar.timer = setTimeout(() => advance(waited + 150), 150); return; }
-    showFrame(radar.frame + 1);
+    showFrame(radar.frame + 1, true);
     tick();
   }, last ? RADAR.holdMs : RADAR.frameMs);
 }
@@ -1708,6 +1748,7 @@ async function updateNearbyRain(force = false) {
   nearbyBusy = true;
   try {
     const r = await analyzeNearby(focusPoint());
+    radar.motion = r.vel || null;
     const text = describeNearby(r);
     const quiet = !(r.state === "here" || (r.state === "near" && r.distMi <= 60));
     for (const id of ["radar-near", "rain-near"]) {
@@ -1793,6 +1834,7 @@ $("radar-play").addEventListener("click", async () => {
   radar.playing = !radar.playing;
   $("radar-play").textContent = radar.playing ? "Pause" : "Play loop";
   $("radar-play").setAttribute("aria-pressed", String(radar.playing));
+  if (!radar.playing) showFrame(radar.frame);   // settle the paused frame in its true position
   tick();
 });
 if (typeof current !== "undefined" && current) updateNearbyRain();
