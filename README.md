@@ -4,7 +4,7 @@ An hourly dew point and rain forecast, in the spirit of weather.com's dew point 
 
 ## Run it
 
-Open `index.html` in a browser, or use the hosted copy at `https://rossh3.github.io/dewpoint/`. On first open it asks for a ZIP code or your location. Your choice is saved in that browser only, and **Change** next to the place name switches it.
+Open `index.html` in a browser, or use the hosted copy at `https://rossh3.github.io/dewpoint/`. On first open it asks for a ZIP code or your location. **Change** next to the place name opens **Your places**: up to 8 saved spots you can switch between with one tap, remove with ×, or add to. Each place can also have its own **Set home…** point on the radar map.
 
 Bookmark it (⌘D) or, on a phone, use **Share → Add to Home Screen**.
 
@@ -53,7 +53,7 @@ For the nearby-rain line, the page reads the radar around home (about 240 miles 
 | [Esri gray canvas](https://www.arcgis.com/home/item.html?id=291da5eab3a0412593b66d384379f89f) | Free for light use | None | Street map under the radar |
 | [Zippopotam.us](https://www.zippopotam.us/) | Free | None | ZIP code to location, on first setup only |
 
-The browser calls these services directly. Nothing is sent anywhere else, and nothing about your location is stored outside your browser.
+The browser calls these services directly, and nothing is sent anywhere else. Places and home points are stored only in your browser. The location sent for forecasts is rounded to about 1 km (0.01°), which is finer than the 2.5 km forecast grid needs; "Use my location" is rounded before it's saved or sent. The page calls a spot by its place name ("Rain 9 mi west of Lexington"), "you" after My location, and "home" only for a point you set yourself.
 
 While the tab is visible, the forecast refreshes every 30 minutes and the radar checks for a new scan every 5 minutes, but only for an hour after you last used the page. After that it stops until you come back.
 

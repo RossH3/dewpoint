@@ -131,6 +131,14 @@ button svg { width: 14px; height: 14px; }
 .setup input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .setup .or { color: var(--ink-3); }
 .setup-msg:empty { display: none; }
+.places { list-style: none; margin: 0.2rem 0 0.4rem; padding: 0; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.places li { display: inline-flex; align-items: center; border: 1px solid var(--rule); border-radius: 999px; }
+.places li button { border: 0; border-radius: 999px; }
+.place-pick { padding: 0.4rem 0.4rem 0.4rem 0.9rem; font-size: 0.875rem; }
+.place-pick.current { color: var(--ink); }
+.place-pick.current::after { content: "· showing"; color: var(--ink-3); font-weight: 400; margin-left: 0.35rem; }
+.place-del { padding: 0.4rem 0.75rem 0.4rem 0.35rem; color: var(--ink-3); font-size: 1rem; line-height: 1; }
+.place-del:hover { color: var(--ink); }
 .setup-msg { color: var(--warn-ink) !important; }
 .needs-place > section:not(.setup), .needs-place > .body-grid, .needs-place > footer, .needs-place .status, .needs-place #change-place { display: none !important; }
 .notice {
@@ -342,7 +350,8 @@ a { color: var(--accent); }
 
   <section class="setup" id="setup" hidden aria-labelledby="setup-label">
     <h2 id="setup-label">Where should Dew Point show the weather?</h2>
-    <p>Enter a ZIP code or use your location. It's saved in this browser only.</p>
+    <div id="place-list" hidden></div>
+    <p>Add a place by ZIP code or your location. Places are saved in this browser only.</p>
     <form id="setup-form" class="setup-row" novalidate>
       <label for="zip" class="sr">ZIP code</label>
       <input id="zip" name="zip" inputmode="numeric" autocomplete="postal-code" maxlength="5" placeholder="ZIP code">
@@ -368,7 +377,7 @@ a { color: var(--accent); }
         <p class="eyebrow">Next rain</p>
         <p class="hl-head" id="rain-head">Checking the forecast…</p>
         <p class="hl-detail" id="rain-detail"></p>
-        <p class="rain-near quiet" id="rain-near">Checking radar near home…</p>
+        <p class="rain-near quiet" id="rain-near">Checking the radar…</p>
       </div>
       <div class="hl">
         <p class="eyebrow">Next nice weather</p>
@@ -410,7 +419,7 @@ a { color: var(--accent); }
       <button type="button" class="play" id="radar-play" aria-pressed="false">Play loop</button>
       <span class="radar-time" id="radar-time" aria-live="off">–</span>
     </div>
-    <p class="radar-near quiet" id="radar-near">Checking radar near home…</p>
+    <p class="radar-near quiet" id="radar-near">Checking the radar…</p>
     <div class="radar-box" id="radar-box">
       <button type="button" id="radar-load" hidden>Try again</button>
       <p>Loading the latest radar…</p>
@@ -418,7 +427,7 @@ a { color: var(--accent); }
     <div class="radar-bar" id="radar-bar" hidden>
       <span class="grp" role="group" aria-label="Map view"><span class="lbl">View</span>
         <button type="button" id="view-state" aria-pressed="false">State</button>
-        <button type="button" id="view-home" aria-pressed="true">Home</button>
+        <button type="button" id="view-home" aria-pressed="true">Close up</button>
         <button type="button" id="my-loc">My location</button>
         <button type="button" id="set-home">Set home…</button>
       </span>
@@ -426,14 +435,15 @@ a { color: var(--accent); }
     <p class="radar-links">Radar: NWS NEXRAD via the Iowa Environmental Mesonet. Mosaic of all nearby radars, about 0.5 km detail, updated every 5 minutes. Redrawn in this page: clear-air noise and speckles removed, then smoothed. Map: Esri, HERE, Garmin, © OpenStreetMap contributors. <a href="https://radar.weather.gov/" target="_blank" rel="noopener">Open the full NWS radar</a></p>
   </section>
 
+  </div>
+  </div>
+
   <section aria-labelledby="hours-label">
     <div class="section-head"><h2 id="hours-label">Hour by hour</h2></div>
     <div class="hour cols" aria-hidden="true"><span>Time</span><span></span><span class="desc">Sky</span><span>Rain</span><span class="rh">Humid.</span><span>Dew point — temp</span></div>
     <div id="hours"></div>
     <button class="more" id="more" type="button" hidden></button>
   </section>
-  </div>
-  </div>
 
   <section aria-labelledby="scale-label">
     <p class="eyebrow" id="scale-label">Dew point comfort scale</p>
@@ -459,8 +469,11 @@ const num = (v) => (v !== null && v !== "" && Number.isFinite(+v) ? +v : null);
 const validPlace = (p) => (p && Number.isFinite(p.lat) && Number.isFinite(p.lon) ? p : null);
 const urlPlace = num(qs.get("lat")) !== null && num(qs.get("lon")) !== null
   ? { lat: +(+qs.get("lat")).toFixed(4), lon: +(+qs.get("lon")).toFixed(4), name: qs.get("name") || null } : null;
-let PLACE = urlPlace || validPlace((() => { try { return JSON.parse(localStorage.getItem("dewpoint:place")); } catch { return null; } })());
+// Saved places are kept to about 1 km (0.01°); older saves are rounded on load.
+const roundPlace = (p) => (p ? { ...p, lat: +p.lat.toFixed(2), lon: +p.lon.toFixed(2) } : p);
+let PLACE = urlPlace || roundPlace(validPlace((() => { try { return JSON.parse(localStorage.getItem("dewpoint:place")); } catch { return null; } })()));
 const placeKey = () => (PLACE ? `${PLACE.lat},${PLACE.lon}` : "");
+const homeKey = (p = PLACE) => (p ? `home:${p.lat},${p.lon}` : "home");
 
 // ---- Comfort scale --------------------------------------------------------
 const BANDS = [
@@ -1547,8 +1560,44 @@ document.addEventListener("visibilitychange", () => {
 setInterval(() => { if (autoRefreshOK()) load(); }, 30 * 60e3);
 
 // ---- Choosing a location ----------------------------------------------------
-function savePlace() { try { localStorage.setItem("dewpoint:place", JSON.stringify(PLACE)); } catch { /* storage unavailable */ } }
+function savePlace() {
+  try { localStorage.setItem("dewpoint:place", JSON.stringify(PLACE)); } catch { /* storage unavailable */ }
+  rememberPlace(PLACE);
+}
+// ---- Saved places: a handful of spots you check, kept in this browser only ----
+const MAX_PLACES = 8;
+const samePlace = (a, b) => a && b && a.lat === b.lat && a.lon === b.lon;
+const savedPlaces = () => (store.get("places") || []).filter(validPlace);
+function rememberPlace(p) {
+  if (!p || urlPlace) return;
+  const list = savedPlaces().filter((q) => !samePlace(q, p));
+  list.unshift({ lat: p.lat, lon: p.lon, name: p.name || null });
+  store.set("places", list.slice(0, MAX_PLACES));
+}
+function forgetPlace(p) {
+  store.set("places", savedPlaces().filter((q) => !samePlace(q, p)));
+  store.set(homeKey(p), null);
+  renderPlaceList();
+}
+function renderPlaceList() {
+  const list = savedPlaces(), box = $("place-list");
+  box.replaceChildren();
+  box.hidden = !list.length;
+  if (!list.length) return;
+  box.append(el("p", { class: "eyebrow" }, "Your places"));
+  const ul = el("ul", { class: "places" });
+  for (const p of list) {
+    const cur = samePlace(p, PLACE);
+    const pick = el("button", { type: "button", class: "place-pick" + (cur ? " current" : ""), "aria-current": cur ? "true" : "false" }, p.name || `${p.lat}, ${p.lon}`);
+    pick.addEventListener("click", () => (cur ? hideSetup() : setPlace(p)));
+    const del = el("button", { type: "button", class: "place-del", "aria-label": `Remove ${p.name || "this place"}`, title: "Remove" }, "×");
+    del.addEventListener("click", () => forgetPlace(p));
+    ul.append(el("li", {}, pick, del));
+  }
+  box.append(ul);
+}
 function showSetup(cancelable) {
+  renderPlaceList();
   $("setup").hidden = false;
   $("setup-cancel").hidden = !cancelable;
   $("app").classList.toggle("needs-place", !cancelable);
@@ -1562,7 +1611,6 @@ function hideSetup() {
 function setPlace(p) {
   PLACE = p;
   savePlace();
-  store.set("home", null);           // a new place starts with home at its center
   current = null;
   hideSetup();
   $("place").textContent = PLACE.name || "Loading…";
@@ -1581,7 +1629,7 @@ $("setup-form").addEventListener("submit", async (e) => {
     const d = await getJSON(`https://api.zippopotam.us/us/${zip}`, { tries: 1 });
     const pl = d.places && d.places[0];
     if (!pl) throw new Error("not found");
-    setPlace({ lat: +(+pl.latitude).toFixed(4), lon: +(+pl.longitude).toFixed(4), name: `${pl["place name"]}, ${pl["state abbreviation"]}` });
+    setPlace({ lat: +(+pl.latitude).toFixed(2), lon: +(+pl.longitude).toFixed(2), name: `${pl["place name"]}, ${pl["state abbreviation"]}` });
   } catch (err) {
     msg.textContent = /404/.test(err.message) || err.message === "not found" ? "Couldn't find that ZIP code. Check it and try again." : "Couldn't look up that ZIP code. Check your connection and try again.";
   }
@@ -1593,7 +1641,8 @@ $("setup-geo").addEventListener("click", () => {
   $("setup-geo").textContent = "Finding you…";
   navigator.geolocation.getCurrentPosition((pos) => {
     $("setup-geo").textContent = "Use my location";
-    setPlace({ lat: +pos.coords.latitude.toFixed(4), lon: +pos.coords.longitude.toFixed(4), name: null });
+    // Rounded to 0.01° (about 1 km) before it's saved or sent anywhere; the forecast grid is ~2.5 km.
+    setPlace({ lat: +pos.coords.latitude.toFixed(2), lon: +pos.coords.longitude.toFixed(2), name: null });
   }, (err) => {
     $("setup-geo").textContent = "Use my location";
     msg.textContent = err.code === 1 ? "Location is blocked. Allow it from the icon at the left of the address bar, or enter a ZIP code." : "Couldn't find your location. Enter a ZIP code instead.";
@@ -1601,6 +1650,7 @@ $("setup-geo").addEventListener("click", () => {
 });
 
 // Show the last saved forecast instantly, then fetch a fresh one.
+if (PLACE && !urlPlace) savePlace();   // stores the rounded place and adds it to Your places
 if (!PLACE) {
   showSetup(false);
 } else {
@@ -1922,19 +1972,30 @@ async function analyzeNearby([lat, lon]) {
 function describeNearby(r) {
   if (!r) return "";
   const motion = r.mph === undefined ? "" : r.mph < 5 ? " It's barely moving." : ` Moving ${r.toward} at about ${Math.round(r.mph / 5) * 5 || 5} mph.`;
-  if (r.state === "here") return `Raining at home now (${r.intensity}).` + motion;
+  const spot = spotName(), at = spot === "you" ? "where you are" : spot === "home" ? "at home" : `in ${spot}`;
+  const of = spot === "you" ? "of you" : `of ${spot}`;
+  if (r.state === "here") return `Raining ${at} now (${r.intensity}).` + motion;
   if (r.state === "near" && r.distMi <= 60) {
     const d = r.distMi < 2 ? "Rain about a mile" : `Rain ${Math.round(r.distMi)} mi`;
-    let s = `${d} ${r.from} (${r.intensity}).` + motion;
+    let s = `${d} ${r.from} ${of} (${r.intensity}).` + motion;
     if (r.etaMin !== undefined && r.valid) s += ` Could reach you around ${clock(new Date(r.valid.getTime() + r.etaMin * 60000))}.`;
     return s;
   }
-  return "No rain on radar within 60 miles.";
+  return `No rain on radar within 60 miles ${of}.`;
 }
 
 // ---- The radar map ------------------------------------------------------------
 const RADAR = { stateZoom: 7, homeZoom: 11, frameMs: 650, holdMs: 1800, opacity: 0.85 };
 const radar = { map: null, frames: [], frame: 0, playing: false, timer: 0, settingHome: false, marker: null, valid: null, here: null, hereMarker: null };
+// What to call the point the nearby-rain check measures from: "you" for My location,
+// "home" only if you set it yourself, otherwise the place's name (e.g. "Lexington").
+function spotName() {
+  if (radar.here) return "you";
+  const h = store.get(homeKey());
+  if (h && Number.isFinite(h.lat)) return "home";
+  return (PLACE && PLACE.name ? PLACE.name.split(",")[0] : "") || "your area";
+}
+function spotLabel() { const n = spotName(); return n === "you" ? "You" : n === "home" ? "Home" : n; }
 // Where the nearby-rain check looks: your current location if you asked for it, else home.
 const focusPoint = () => radar.here || getHome();
 
@@ -1948,7 +2009,7 @@ function loadLeaflet() {
   });
 }
 function getHome() {
-  const h = store.get("home");
+  const h = store.get(homeKey());
   return h && Number.isFinite(h.lat) && Number.isFinite(h.lon) ? [h.lat, h.lon] : [PLACE.lat, PLACE.lon];
 }
 const darkMode = () => document.documentElement.dataset.theme === "dark" ||
@@ -2031,8 +2092,10 @@ function setView(which) {
 }
 function placeMarker() {
   const ll = getHome();
-  if (radar.marker) radar.marker.setLatLng(ll);
-  else radar.marker = L.circleMarker(ll, { pane: "labels", radius: 7, weight: 3, color: "#ffffff", fillColor: "#1d5f8f", fillOpacity: 1 }).bindTooltip("Home").addTo(radar.map);
+  const own = store.get(homeKey());
+  $("view-home").textContent = own && Number.isFinite(own.lat) ? "Home" : ((PLACE && PLACE.name ? PLACE.name.split(",")[0] : "") || "Close up");
+  if (radar.marker) { radar.marker.setLatLng(ll); radar.marker.setTooltipContent(own && Number.isFinite(own.lat) ? "Home" : spotLabel()); }
+  else radar.marker = L.circleMarker(ll, { pane: "labels", radius: 7, weight: 3, color: "#ffffff", fillColor: "#1d5f8f", fillOpacity: 1 }).bindTooltip(spotLabel()).addTo(radar.map);
 }
 
 async function startRadar() {
@@ -2082,7 +2145,7 @@ async function startRadar() {
   map.on("click", (e) => {
     if (!radar.settingHome) return;
     radar.settingHome = false;
-    store.set("home", { lat: +e.latlng.lat.toFixed(4), lon: +e.latlng.lng.toFixed(4) });
+    store.set(homeKey(), { lat: +e.latlng.lat.toFixed(4), lon: +e.latlng.lng.toFixed(4) });
     document.querySelector(".home-hint")?.remove();
     $("set-home").textContent = "Set home…";
     placeMarker();
@@ -2111,7 +2174,7 @@ async function updateNearbyRain(force = false) {
     }
   } catch (e) {
     console.warn("Nearby rain check failed:", e);
-    for (const id of ["radar-near", "rain-near"]) { $(id).textContent = "Couldn't check the radar near home."; $(id).classList.add("quiet"); }
+    for (const id of ["radar-near", "rain-near"]) { $(id).textContent = "Couldn't check the radar nearby."; $(id).classList.add("quiet"); }
   } finally {
     nearbyBusy = false;
   }
