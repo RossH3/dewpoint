@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chart Walker Sketch</title>
+<style>
+/* Wireframe for the chart walker: one SVG figure, poses toggled by class, walking a sample line. */
+:root { --bg: #fafbfb; --ink: #15212b; --ink-2: #4a5764; --ink-3: #66727e; --rule: #e3e7ea; --drop: #3a86c8; --temp: #7b8894; --nice: #2e7d4f; --muggy: #b05f04; --sun: #e1a124; --fig: #15212b; --fig-fill: #fafbfb; }
+@media (prefers-color-scheme: dark) { :root { --bg: #12181c; --ink: #e8edf0; --ink-2: #b4bfc7; --ink-3: #8a97a2; --rule: #232d34; --drop: #6fb0ea; --temp: #85929d; --nice: #6cc58f; --muggy: #d07105; --sun: #f0b843; --fig: #e8edf0; --fig-fill: #12181c; color-scheme: dark; } }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 64rem; margin: 0 auto; padding: 1.5rem max(16px, env(safe-area-inset-left, 0px)); display: grid; gap: 1.5rem; }
+h1 { margin: 0; font-size: 1.25rem; } h2 { margin: 0 0 .5rem; font-size: 1rem; }
+p { margin: 0; color: var(--ink-2); max-width: 42rem; }
+button { font: inherit; font-weight: 600; color: var(--drop); background: none; border: 1px solid var(--rule); border-radius: 999px; padding: .35rem .9rem; cursor: pointer; }
+.stage { border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; }
+svg text { font-family: inherit; }
+.poses { display: grid; grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr)); gap: .75rem; }
+.poses figure { margin: 0; border: 1px solid var(--rule); border-radius: 8px; padding: .5rem; text-align: center; }
+.poses figcaption { font-size: .8125rem; color: var(--ink-3); }
+
+/* ---- The figure ---- */
+.guy .line { stroke: var(--fig); stroke-width: 3; stroke-linecap: round; fill: none; }
+.guy .head { fill: var(--fig-fill); stroke: var(--fig); stroke-width: 2.5; }
+.guy .eye { fill: var(--fig); }
+.guy .hat { fill: var(--muggy); }
+.guy .opt { display: none; }
+.guy .limb { transform-box: view-box; }
+.guy .leg-a, .guy .leg-b { transform-origin: 20px 38px; }
+.guy .arm-a, .guy .arm-b { transform-origin: 20px 24px; }
+/* Standing still: a relaxed stance instead of legs on top of each other. */
+.guy .leg-a { transform: rotate(-12deg); } .guy .leg-b { transform: rotate(12deg); }
+.guy .arm-a { transform: rotate(-10deg); }
+.guy.walk .leg-a, .guy.climb .leg-a { animation: swing .5s ease-in-out infinite alternate; }
+.guy.walk .leg-b, .guy.climb .leg-b { animation: swing .5s ease-in-out infinite alternate-reverse; }
+.guy.walk .arm-a { animation: swing .5s ease-in-out infinite alternate-reverse; }
+.guy.walk .arm-b { animation: swing .5s ease-in-out infinite alternate; }
+.guy.hurry .limb { animation-duration: .28s !important; }
+@keyframes swing { from { transform: rotate(-24deg); } to { transform: rotate(24deg); } }
+.guy .body { transform-origin: 20px 56px; transition: transform .25s; }
+.guy.climb .body { transform: rotate(14deg); }
+.guy.slide .body { transform: rotate(-12deg) translateY(6px); }
+.guy.slide .leg-a { transform: rotate(-80deg); } .guy.slide .leg-b { transform: rotate(-65deg); }
+.guy.slide .arm-a { transform: rotate(-150deg); } .guy.slide .arm-b { transform: rotate(150deg); }
+.guy.umbrella .umb, .guy.shades .glasses, .guy.sweat .drip, .guy.bonk .bonk, .guy.wave .waver { display: inline; }
+.guy.umbrella .arm-b { animation: none; transform: rotate(160deg); }
+.guy.wave .arm-b { animation: wave .35s ease-in-out infinite alternate; }
+@keyframes wave { from { transform: rotate(140deg); } to { transform: rotate(185deg); } }
+.guy .drip { fill: var(--drop); animation: drip 1s ease-in infinite; }
+@keyframes drip { from { transform: translateY(0); opacity: 1; } to { transform: translateY(6px); opacity: 0; } }
+.guy .umb-top { fill: var(--drop); }
+.guy .glasses { fill: var(--fig); }
+.bubble rect { fill: var(--bg); stroke: var(--rule); }
+.bubble text { font-size: 12px; fill: var(--ink); }
+@media (prefers-reduced-motion: reduce) { .guy * { animation: none !important; } }
+</style>
+</head>
+<body>
+<main>
+  <div>
+    <h1>Chart walker: sketch</h1>
+    <p>Wireframe of the Easter egg. He walks a sample temperature line through a rainy stretch, a muggy afternoon and a nice weekend. On the real chart he'd follow the actual line and react to the real forecast.</p>
+  </div>
+  <div><button id="go" type="button">Walk</button></div>
+  <div class="stage"><svg id="scene" viewBox="0 0 900 300" width="100%" role="img" aria-label="Sample chart with a walking figure"></svg></div>
+  <section>
+    <h2>Poses</h2>
+    <div class="poses" id="poses"></div>
+  </section>
+</main>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <!-- The figure: 40×60 box, feet at (20, 56). Optional parts are shown by pose classes. -->
+    <g id="guy-art">
+      <g class="body">
+        <g class="opt umb"><path class="umb-top" d="M2,4 Q20,-12 38,4 Q33,1 29,4 Q24,0 20,4 Q16,0 11,4 Q7,1 2,4Z"/><line class="line" x1="20" y1="4" x2="27" y2="22" style="stroke-width:2"/></g>
+        <line class="line limb leg-a" x1="20" y1="38" x2="20" y2="56"/>
+        <line class="line limb leg-b" x1="20" y1="38" x2="20" y2="56"/>
+        <line class="line" x1="20" y1="20" x2="20" y2="38"/>
+        <line class="line limb arm-a" x1="20" y1="24" x2="20" y2="35"/>
+        <line class="line limb arm-b waver" x1="20" y1="24" x2="20" y2="35"/>
+        <circle class="head" cx="20" cy="12" r="7.5"/>
+        <path class="hat" d="M12,8 Q20,0 28,8 L30,9 L10,9Z"/>
+        <circle class="eye" cx="23" cy="12.5" r="1.2"/>
+        <g class="opt glasses"><rect x="18.5" y="10.5" width="5.5" height="3.2" rx="1"/><rect x="25" y="10.5" width="3.5" height="3.2" rx="1"/></g>
+        <path class="opt drip" d="M12.5,10 C13.5,12 14,13 14,14 A1.5,1.5 0 0 1 11,14 C11,13 11.5,12 12.5,10Z"/>
+        <g class="opt bonk"><path d="M20,-10 C21.5,-7.5 22.5,-6 22.5,-4.6 A2.5,2.5 0 0 1 17.5,-4.6 C17.5,-6 18.5,-7.5 20,-10Z" fill="var(--drop)"/></g>
+      </g>
+    </g>
+  </defs>
+</svg>
+<script>
+"use strict";
+const NS = "http://www.w3.org/2000/svg";
+const mk = (t, a = {}) => { const n = document.createElementNS(NS, t); for (const [k, v] of Object.entries(a)) n.setAttribute(k, v); return n; };
+const scene = document.getElementById("scene");
+
+// Sample week: temperature hills, a rainy stretch, a muggy afternoon, a nice weekend.
+const W = 900, yTop = 70, bot = 270;
+const temps = [66, 64, 63, 66, 72, 78, 80, 76, 70, 67, 66, 66, 68, 72, 70, 64, 58, 55, 60, 68, 71, 66, 59, 54, 57, 66, 70, 67, 60, 56];
+const x = (i) => 30 + i * (W - 60) / (temps.length - 1);
+const y = (t) => bot - (t - 45) / 45 * (bot - yTop);
+const zones = [
+  { from: 9, to: 14, kind: "rain", label: "Rain 70%" },
+  { from: 4, to: 7, kind: "muggy", label: "Muggy" },
+  { from: 18, to: 26, kind: "nice", label: "Nice days" },
+];
+const zoneAt = (i) => zones.filter((z) => i >= z.from && i <= z.to).map((z) => z.kind);
+
+// Zones as soft bands, rain hanging from the top like the real chart.
+for (const z of zones) {
+  const x0 = x(z.from), x1 = x(z.to);
+  if (z.kind === "rain") scene.append(mk("path", { d: `M${x0},20 Q${(x0 + x1) / 2},95 ${x1},20Z`, fill: "var(--drop)", "fill-opacity": .45 }));
+  else scene.append(mk("rect", { x: x0, y: 20, width: x1 - x0, height: bot - 20, fill: z.kind === "nice" ? "var(--nice)" : "var(--muggy)", "fill-opacity": .08 }));
+  const t = mk("text", { x: (x0 + x1) / 2, y: 14, "text-anchor": "middle", "font-size": 12, fill: "var(--ink-3)" }); t.textContent = z.label; scene.append(t);
+}
+// A brief-shower drop at one spot.
+const bonkAt = 3;
+scene.append(mk("path", { d: `M${x(bonkAt)},28 c2,3 3,4.5 3,6 a3,3 0 0 1 -6,0 c0,-1.5 1,-3 3,-6z`, fill: "var(--drop)" }));
+// The line (simple smooth curve through the points).
+let d = `M${x(0)},${y(temps[0])}`;
+for (let i = 1; i < temps.length; i++) { const cx = (x(i - 1) + x(i)) / 2; d += ` C${cx},${y(temps[i - 1])} ${cx},${y(temps[i])} ${x(i)},${y(temps[i])}`; }
+const path = mk("path", { d, fill: "none", stroke: "var(--temp)", "stroke-width": 2.5 });
+scene.append(path);
+
+// The walker: 40×60 figure, scaled to ~36 px tall, feet on the line.
+function makeGuy(parent, scale = 0.75) {
+  const g = mk("g", { class: "guy walk" });
+  const art = document.getElementById("guy-art").cloneNode(true);
+  art.removeAttribute("id");
+  g.append(art);
+  parent.append(g);
+  g._scale = scale;
+  return g;
+}
+const guy = makeGuy(scene);
+const bubble = mk("g", { class: "bubble", visibility: "hidden" });
+bubble.append(mk("rect", { x: 0, y: 0, width: 92, height: 24, rx: 12 }));
+const bt = mk("text", { x: 46, y: 16, "text-anchor": "middle" }); bt.textContent = "Ahh, nice.";
+bubble.append(bt);
+scene.append(bubble);
+
+const L = path.getTotalLength();
+function place(s) {
+  const p = path.getPointAtLength(s), q = path.getPointAtLength(Math.min(L, s + 6));
+  const slope = Math.atan2(q.y - p.y, q.x - p.x) * 180 / Math.PI;   // + is downhill (SVG y points down)
+  const i = Math.round((p.x - 30) / ((W - 60) / (temps.length - 1)));
+  const z = zoneAt(i);
+  const cls = ["guy"];
+  cls.push(slope < -22 ? "climb" : slope > 22 ? "slide" : "walk");
+  if (z.includes("rain")) cls.push("umbrella", "hurry");
+  if (z.includes("muggy")) cls.push("sweat");
+  if (z.includes("nice")) cls.push("shades");
+  if (i === bonkAt) cls.push("bonk");
+  guy.setAttribute("class", cls.join(" "));
+  const sc = guy._scale;
+  guy.setAttribute("transform", `translate(${p.x - 20 * sc},${p.y - 56 * sc}) scale(${sc})`);
+  const showBubble = z.includes("nice") && i >= 20 && i <= 23;
+  bubble.setAttribute("visibility", showBubble ? "visible" : "hidden");
+  bubble.setAttribute("transform", `translate(${p.x + 10},${p.y - 64})`);
+  return slope;
+}
+
+// Walk: slower uphill, faster downhill; wave at the end.
+let s = 0, last = 0, raf = 0;
+function step(t) {
+  const dt = last ? Math.min(50, t - last) : 16; last = t;
+  const slope = place(s);
+  const speed = 0.045 * (slope < -22 ? 0.55 : slope > 22 ? 1.8 : 1) * (guy.classList.contains("hurry") ? 1.4 : 1);
+  s += speed * dt;
+  if (s >= L) { place(L); guy.setAttribute("class", "guy wave"); return; }
+  raf = requestAnimationFrame(step);
+}
+document.getElementById("go").addEventListener("click", () => { cancelAnimationFrame(raf); s = 0; last = 0; raf = requestAnimationFrame(step); });
+place(0);
+
+// Pose sheet.
+const poses = [["walk", "Walk"], ["climb", "Climb"], ["slide", "Slide"], ["walk umbrella", "Umbrella"], ["walk bonk", "Bonk"], ["walk shades", "Nice day"], ["walk sweat", "Muggy"], ["wave", "Wave"]];
+const sheet = document.getElementById("poses");
+for (const [c, name] of poses) {
+  const f = document.createElement("figure");
+  const sv = mk("svg", { viewBox: "-6 -14 52 74", width: 72, height: 100 });
+  const g = makeGuy(sv, 1); g.setAttribute("class", "guy " + c);
+  f.append(sv);
+  const cap = document.createElement("figcaption"); cap.textContent = name; f.append(cap);
+  sheet.append(f);
+}
+</script>
+</body>
+</html>
