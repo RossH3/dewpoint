@@ -10,7 +10,7 @@ Bookmark it (⌘D) or, on a phone, use **Share → Add to Home Screen**.
 
 ## What it shows
 
-- **Dew point right now**, with the next nice weather ("Fri – Tue · Beautiful. Sunny, highs 66–74°, dew points 41–59°") and nearby rain on radar ("Rain 13 mi west (light). Moving northeast at about 30 mph. Could reach you around 10:05 PM.") beside it.
+- **Dew point right now**, beside two matching blocks: **Next rain** ("Tonight, 9 PM–6 AM · Rain likely, up to 95%", with the nearby-radar line under it) and **Next nice weather** ("Saturday – Tuesday · Beautiful · Sunny, highs 68–71°, dew points 45–53°").
 - **Details:** rain stretches in the next 3 days, brief chances, when it dries out, and pressure highs and lows with a plain reminder of what they mean. On wide screens (1200 px and up) the details sit in a column beside the chart and stay in view as you scroll; on smaller screens they follow the chart.
 - **The next 7 days** as a chart: chance of rain across the top, hanging down like falling rain, then the dew point (colored by comfort band, each day's high labeled) with a light temperature line. Where the two lines meet, the air is saturated. Days, "Now" and marks at 6 AM, noon and 6 PM run along the top; weekends are shaded. Hover, or use the arrow keys, for any hour.
 - **Pressure:** a slim strip under the dew point with its own scale, marked with weather-map **H** and **L** at the turning points, plus a Pressure group in the outlook ("Friday afternoon · Low 29.78 in, then rising (clearing)").

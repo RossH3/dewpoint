@@ -260,7 +260,12 @@ svg.hcurves text { font-family: var(--font); font-variant-numeric: tabular-nums;
 .rain-legend i { width: 12px; height: 12px; border-radius: 3px; }
 .radar-near { margin: 0 0 0.6rem; font-weight: 600; min-height: 1.5em; }
 .outlook-box { display: grid; gap: 0.25rem; }
-#outlook { min-height: 3.5rem; }
+.hero-blocks { display: grid; gap: 1.25rem 2.5rem; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); align-items: start; }
+.hl { display: grid; gap: 0.2rem; min-width: 0; }
+.hl .eyebrow { margin: 0; }
+.hl-head { margin: 0; font-size: 1.25rem; font-weight: 600; line-height: 1.3; min-height: 1.3em; text-wrap: balance; }
+.hl-detail { margin: 0; color: var(--ink-2); min-height: 1.5em; }
+.hl .rain-near { margin-top: 0.35rem; }
 #details { min-height: 10rem; }
 .outlook {  display: grid; gap: 0.75rem; max-width: 40rem; }
 .ol-wait { margin: 0; color: var(--ink-3); }
@@ -358,9 +363,18 @@ a { color: var(--accent); }
         <span class="big" id="now-dew">––°</span>
       </div>
     </div>
-    <div class="outlook-box">
-      <div class="outlook" id="outlook"><p class="ol-wait">Checking the forecast…</p></div>
-      <p class="rain-near quiet" id="rain-near">Checking radar near home…</p>
+    <div class="outlook-box hero-blocks">
+      <div class="hl">
+        <p class="eyebrow">Next rain</p>
+        <p class="hl-head" id="rain-head">Checking the forecast…</p>
+        <p class="hl-detail" id="rain-detail"></p>
+        <p class="rain-near quiet" id="rain-near">Checking radar near home…</p>
+      </div>
+      <div class="hl">
+        <p class="eyebrow">Next nice weather</p>
+        <p class="hl-head" id="nice-head"></p>
+        <p class="hl-detail" id="nice-detail"></p>
+      </div>
     </div>
   </section>
 
@@ -972,6 +986,9 @@ function drawHourCurves() {
 }
 let hourFrame = 0;
 new ResizeObserver(() => { cancelAnimationFrame(hourFrame); hourFrame = requestAnimationFrame(drawHourCurves); }).observe($("hours"));
+// Rows shift slightly when the web font arrives; redraw then too.
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => requestAnimationFrame(drawHourCurves));
+addEventListener("load", () => requestAnimationFrame(drawHourCurves));
 
 // ---- Smooth lines -----------------------------------------------------------
 // A curve through the points that never overshoots them (monotone cubic, Fritsch–Carlson).
@@ -1369,6 +1386,23 @@ function rainOutlook(ps) {
 // ---- Outlook lines: rain windows, then nice weather --------------------------
 const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
 const isBlip = (w) => w.lastIdx - w.firstIdx < 2 && w.peak.pop < 40;
+// The one rain line for the top of the page: the next real stretch of rain.
+function rainSummary(ps) {
+  const now = new Date();
+  const wins = rainWindows(ps);
+  const w = wins.find((x) => x.start.startD - now < 72 * 36e5 && !isBlip(x));
+  if (!w) {
+    const later = wins.find((x) => !isBlip(x));
+    return { head: "Dry for the next 3 days", detail: later ? `Next chance ${dayPart(later.start.startD, now)} (${later.peak.pop}%)` : `Dry through ${fmt(ps[ps.length - 1].startD, { weekday: "long" })}` };
+  }
+  const d = describeWindow(w, now);
+  const hours = w.lastIdx - w.firstIdx + 1, start = w.start.startD;
+  const calDay = dayKey(start) === dayKey(now) ? "Today" : dayKey(start) === dayKey(new Date(now.getTime() + 864e5)) ? "Tomorrow" : fmt(start, { weekday: "long" });
+  const when = d.when === "now" ? "Now" : hours > 6 && !/^(tonight|this )/.test(dayPart(start, now)) ? calDay : cap(dayPart(start, now));
+  const until = `until ${hr12(new Date(w.end.startD.getTime() + 36e5))}`;
+  const span = when === "Now" ? (hours > 14 ? `until ${dayPart(new Date(w.end.startD.getTime() + 36e5), now)}` : until) : d.span;
+  return { head: `${when}, ${span}`, detail: d.likely ? `Rain likely, up to ${w.peak.pop}%` : `Up to ${w.peak.pop}% chance` };
+}
 function rainLines(ps) {
   const now = new Date();
   const wins = rainWindows(ps);
@@ -1462,7 +1496,8 @@ function niceLines(ps) {
   };
   if (!good.length) {
     const best = days.slice().sort((a, b) => b.score - a.score)[0];
-    return [{ when: "This week", text: best ? `No standout days. Best bet ${name(best)}: high ${best.high}°, dew point ${best.dew}°` : "Not enough forecast yet" }];
+    return [{ when: "This week", head: "No standout days this week", detail: best ? `Best bet ${name(best)}: high ${best.high}°, dew point ${best.dew}°` : "Not enough forecast yet",
+      text: best ? `No standout days. Best bet ${name(best)}: high ${best.high}°, dew point ${best.dew}°` : "Not enough forecast yet" }];
   }
   // Group consecutive nice days: "Saturday – Monday".
   const runs = [];
@@ -1471,17 +1506,27 @@ function niceLines(ps) {
     const idx = days.indexOf(d);
     if (prev && days.indexOf(prev[prev.length - 1]) === idx - 1) prev.push(d); else runs.push([d]);
   }
-  return runs.slice(0, 2).map((r) => ({
-    when: r.length === 1 ? name(r[0]) : `${short(r[0])} ${r.length === 2 ? "&" : "–"} ${short(r[r.length - 1])}`,
-    text: describe(r),
-  }));
+  return runs.slice(0, 2).map((r) => {
+    const text = describe(r);
+    return {
+      when: r.length === 1 ? name(r[0]) : `${short(r[0])} ${r.length === 2 ? "&" : "–"} ${short(r[r.length - 1])}`,
+      head: r.length === 1 ? name(r[0]) : `${name(r[0])} ${r.length === 2 ? "and" : "–"} ${name(r[r.length - 1])}`,
+      detail: text.replace(/^Beautiful\. /, "Beautiful · "),
+      text,
+    };
+  });
 }
 function renderOutlook(ps) {
   const group = (title, lines) => el("div", { class: "ol-group" },
     el("p", { class: "eyebrow" }, title),
     el("ul", { class: "ol-lines" }, ...lines.map((l) => el("li", { class: [l.quiet ? "quiet" : "", l.cls || ""].join(" ").trim() }, el("span", { class: "ol-when" }, l.when), el("span", {}, l.text)))));
   const pl = pressureLines(ps);
-  $("outlook").replaceChildren(group("Nice weather", niceLines(ps)));
+  const nice = niceLines(ps)[0];
+  $("nice-head").textContent = nice.head;
+  $("nice-detail").textContent = nice.detail;
+  const rain = rainSummary(ps);
+  $("rain-head").textContent = rain.head;
+  $("rain-detail").textContent = rain.detail;
   $("details").replaceChildren(group("Rain", rainLines(ps)), ...(pl ? [group("Pressure", pl)] : []));
 }
 
