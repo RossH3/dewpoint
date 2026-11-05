@@ -10,10 +10,8 @@ Bookmark it (⌘D) or, on a phone, use **Share → Add to Home Screen**.
 
 ## What it shows
 
-- **Dew point right now**, with an outlook beside it in short lines:
-  - **Rain:** each stretch of 30%+ chance in the next 3 days ("Tonight · 1–5 AM, up to 55%"), a muted "Brief chances" line for short blips, then when it dries out.
-  - **Nice weather:** the next nice days ("Sat – Tue · Beautiful. Sunny, highs 68–72°, dew points 45–54°").
-  - **Nearby rain:** where rain is on radar and how it's moving ("Rain 35 mi west (light). Moving northeast at about 30 mph.").
+- **Dew point right now**, with the next nice weather ("Fri – Tue · Beautiful. Sunny, highs 66–74°, dew points 41–59°") and nearby rain on radar ("Rain 13 mi west (light). Moving northeast at about 30 mph. Could reach you around 10:05 PM.") beside it.
+- **Details:** rain stretches in the next 3 days, brief chances, when it dries out, and pressure highs and lows with a plain reminder of what they mean. On wide screens (1200 px and up) the details sit in a column beside the chart and stay in view as you scroll; on smaller screens they follow the chart.
 - **The next 7 days** as a chart: chance of rain across the top, hanging down like falling rain, then the dew point (colored by comfort band, each day's high labeled) with a light temperature line. Where the two lines meet, the air is saturated. Days, "Now" and marks at 6 AM, noon and 6 PM run along the top; weekends are shaded. Hover, or use the arrow keys, for any hour.
 - **Pressure:** a slim strip under the dew point with its own scale, marked with weather-map **H** and **L** at the turning points, plus a Pressure group in the outlook ("Friday afternoon · Low 29.78 in, then rising (clearing)").
 - **Radar:** a zoomable street map with the latest scan. **Play loop** animates the last 50 minutes. **State**, **Home**, **My location** and **Set home…** move the map and the nearby-rain check.
@@ -25,7 +23,11 @@ Comfort bands: Dry (below 50°), Comfortable (50–59°), Sticky (60–64°), Mu
 
 Falling pressure usually means a low or front is coming: air rises, spreads out and cools into clouds and rain. Rising pressure means air is sinking and packing down, which clears and dries things out.
 
-Sea-level pressure comes from Open-Meteo, because the NWS hourly forecast doesn't include it. Pressure also has a daily "tide" of about ±0.04 inHg, highest mid-morning and lowest mid-afternoon. The page averages it out over 12 hours before judging trends ("rising", "falling fast") and finding highs and lows. A high or low only counts once pressure has turned around by 0.06 inHg (`PRES_TURN`). The chart draws the smoothed line, with the actual readings faint behind it.
+Sea-level pressure comes from Open-Meteo, because the NWS hourly forecast doesn't include it. Pressure also has a daily "tide" of about ±0.04 inHg, highest mid-morning and lowest mid-afternoon. The page averages it out over 12 hours before judging trends ("rising", "falling fast") and finding highs and lows. A high or low only counts once pressure has turned around by 0.06 inHg (`PRES_TURN`). The chart marks the 29.92 average, and each reading gets a plain description ("about average", "low", "strong high"). For a sense of scale: nearly all US weather falls between 29.5 and 30.5; strong storms go below 29.5, hurricanes below 28, and readings above 31 are very rare.
+
+## Smoothing
+
+Chart lines are drawn as smooth curves through the hourly values (a monotone cubic, which never overshoots the real numbers). The dew point also gets a light 3-hour average to remove its 1-degree stair steps, and pressure a 12-hour average that removes its daily tide. Rain chance is drawn as a curtain through the actual hourly values, solid past 30%. Labels, the tooltip and the hourly list always show the actual numbers.
 
 ## The nice meter
 

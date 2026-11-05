@@ -132,7 +132,7 @@ button svg { width: 14px; height: 14px; }
 .setup .or { color: var(--ink-3); }
 .setup-msg:empty { display: none; }
 .setup-msg { color: var(--warn-ink) !important; }
-.needs-place > section:not(.setup), .needs-place > footer, .needs-place .status, .needs-place #change-place { display: none !important; }
+.needs-place > section:not(.setup), .needs-place > .body-grid, .needs-place > footer, .needs-place .status, .needs-place #change-place { display: none !important; }
 .notice {
   background: var(--warn-bg); color: var(--warn-ink);
   border-radius: 8px; padding: 0.6rem 0.9rem; font-size: 0.875rem;
@@ -265,7 +265,9 @@ button svg { width: 14px; height: 14px; }
 .rain-legend i { width: 12px; height: 12px; border-radius: 3px; }
 .radar-near { margin: 0 0 0.6rem; font-weight: 600; min-height: 1.5em; }
 .outlook-box { display: grid; gap: 0.25rem; }
-.outlook { min-height: 13.5rem; display: grid; gap: 0.75rem; max-width: 40rem; }
+#outlook { min-height: 3.5rem; }
+#details { min-height: 10rem; }
+.outlook {  display: grid; gap: 0.75rem; max-width: 40rem; }
 .ol-wait { margin: 0; color: var(--ink-3); }
 .ol-group .eyebrow { margin-bottom: 0.2rem; }
 .ol-lines { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.15rem; }
@@ -278,7 +280,29 @@ button svg { width: 14px; height: 14px; }
 .nice-tag { margin-left: 0.6rem; font-size: 0.75rem; font-weight: 600; color: var(--good); border: 1px solid currentColor; border-radius: 999px; padding: 0.05rem 0.5rem; vertical-align: 0.1em; }
 .rain-near { margin: 0; color: var(--rain); font-weight: 600; min-height: 1.5em; }
 .rain-near.quiet, .radar-near.quiet { color: var(--ink-3); font-weight: 400; }
-@media (min-width: 1300px) { .page { max-width: 62rem; } :root { --map-h: 38rem; } }
+.body-grid { display: grid; gap: 2rem; }
+.main-col { display: grid; gap: 2rem; min-width: 0; }
+.details { min-width: 0; }
+/* Narrower screens: one column, with the details right after the chart. */
+@media (max-width: 1199px) {
+  .main-col { display: contents; }
+  .main-col > section:first-child { order: 1; }
+  .details { order: 2; }
+  .main-col > #radar { order: 3; }
+  .main-col > section:last-child { order: 4; }
+}
+/* Wide screens: details beside the chart, staying in view while you scroll. */
+@media (min-width: 1200px) {
+  .page { max-width: 84rem; }
+  :root { --map-h: 36rem; }
+  .body-grid { grid-template-columns: minmax(0, 1fr) 21rem; column-gap: 3rem; align-items: start; }
+  .main-col { grid-column: 1; grid-row: 1; }
+  .details { grid-column: 2; grid-row: 1; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 1rem); max-height: calc(100vh - 2rem); overflow: auto;
+    border-left: 1px solid var(--rule); padding-left: 2rem; padding-top: 0.25rem; }
+  .details .ol-lines { gap: 0.55rem; }
+  .details .ol-lines li { grid-template-columns: 1fr; gap: 0; }
+  .details .ol-when { font-size: 0.8125rem; color: var(--ink-3); }
+}
 .radar-links { margin: 0.5rem 0 0; font-size: 0.8125rem; color: var(--ink-3); }
 .loc-status { position: absolute; z-index: 500; left: 50%; bottom: 0.75rem; transform: translateX(-50%); max-width: calc(100% - 2rem); background: var(--bg); color: var(--ink); border: 1px solid var(--rule); border-radius: 999px; padding: 0.3rem 0.9rem; font-size: 0.8125rem; box-shadow: 0 2px 8px rgba(0,0,0,.15); text-align: center; }
 .loc-status:empty { display: none; }
@@ -342,6 +366,11 @@ a { color: var(--accent); }
     </div>
   </section>
 
+  <div class="body-grid">
+  <aside class="details" aria-label="Forecast details">
+    <div class="outlook" id="details"><p class="ol-wait">Checking the forecast…</p></div>
+  </aside>
+  <div class="main-col">
   <section aria-labelledby="week-label">
     <div class="section-head">
       <h2 id="week-label">Next 7 days</h2>
@@ -391,6 +420,8 @@ a { color: var(--accent); }
     <div id="hours"></div>
     <button class="more" id="more" type="button" hidden></button>
   </section>
+  </div>
+  </div>
 
   <section aria-labelledby="scale-label">
     <p class="eyebrow" id="scale-label">Dew point comfort scale</p>
@@ -399,6 +430,7 @@ a { color: var(--accent); }
 
   <footer>
     <p id="source">Forecast from the National Weather Service hourly forecast (api.weather.gov). No account or key needed.</p>
+    <p>Chart lines are drawn as smooth curves through the hourly values. The dew point also gets a light 3-hour average, and pressure a 12-hour average that removes its daily tide. Labels and the hourly list show the actual numbers.</p>
     <p>Compare: <a id="link-nws" href="https://www.weather.gov/" target="_blank" rel="noopener">weather.gov hourly graph</a> · <a id="link-wx" href="https://weather.com/" target="_blank" rel="noopener">weather.com hourly</a></p>
   </footer>
 </main>
@@ -666,11 +698,15 @@ function presPivots(ps) {
     return { i: j, type };
   });
 }
+// A feel for the number (sea level, inHg). Average is 29.92; nearly all weather is 29.5–30.5.
+function presWord(v) {
+  return v < 29.2 ? "very low, strong storm" : v < 29.6 ? "low" : v < 29.8 ? "a bit low" : v < 30.05 ? "about average" : v < 30.3 ? "high" : v < 30.6 ? "very high" : "extremely high";
+}
 function pressureLines(ps) {
   const pp = ps.filter((p) => Number.isFinite(p.pres));
   if (pp.length < 24) return null;
   const now = new Date();
-  const lines = [{ when: "Now", text: `${pp[0].pres.toFixed(2)} in, ${presTrend(pp, 0)}` }];
+  const lines = [{ when: "Now", text: `${pp[0].pres.toFixed(2)} in (${presWord(pp[0].pres)}), ${presTrend(pp, 0)}` }];
   const piv = presPivots(pp).filter((v) => pp[v.i].startD - now < 120 * 36e5).slice(0, 2);
   for (const v of piv) {
     const p = pp[v.i];
@@ -680,7 +716,7 @@ function pressureLines(ps) {
     const t = pp[pp.length - 1].pres - pp[0].pres;
     lines.push({ when: "Then", text: `${t > 0.04 ? "Rising" : t < -0.04 ? "Falling" : "Fairly steady"} through ${fmt(pp[pp.length - 1].startD, { weekday: "long" })}` });
   }
-  lines.push({ when: "Remember", quiet: true, text: "Low = air rising and spreading out: clouds and rain. High = air sinking and packing down: clear and dry." });
+  lines.push({ when: "Remember", quiet: true, text: "Low = air rising and spreading out: clouds and rain. High = air sinking and packing down: clear and dry. Average is 29.92; most weather falls between 29.5 and 30.5." });
   return lines;
 }
 
@@ -872,6 +908,30 @@ function renderHours(data) {
 }
 $("more").addEventListener("click", () => { showAll = !showAll; if (current) renderHours(current); });
 
+// ---- Smooth lines -----------------------------------------------------------
+// A curve through the points that never overshoots them (monotone cubic, Fritsch–Carlson).
+function smoothPath(pts) {
+  const n = pts.length;
+  if (n < 2) return n ? `M${pts[0][0]},${pts[0][1]}` : "";
+  const sl = [], t = new Array(n);
+  for (let i = 0; i < n - 1; i++) sl[i] = (pts[i + 1][1] - pts[i][1]) / ((pts[i + 1][0] - pts[i][0]) || 1);
+  t[0] = sl[0]; t[n - 1] = sl[n - 2];
+  for (let i = 1; i < n - 1; i++) t[i] = sl[i - 1] * sl[i] <= 0 ? 0 : (sl[i - 1] + sl[i]) / 2;
+  for (let i = 0; i < n - 1; i++) {
+    if (sl[i] === 0) { t[i] = t[i + 1] = 0; continue; }
+    const a = t[i] / sl[i], b = t[i + 1] / sl[i], h = a * a + b * b;
+    if (h > 9) { const k = 3 / Math.sqrt(h); t[i] = k * a * sl[i]; t[i + 1] = k * b * sl[i]; }
+  }
+  let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
+  for (let i = 0; i < n - 1; i++) {
+    const [x0, y0] = pts[i], [x1, y1] = pts[i + 1], h = (x1 - x0) / 3;
+    d += `C${(x0 + h).toFixed(1)},${(y0 + t[i] * h).toFixed(1)} ${(x1 - h).toFixed(1)},${(y1 - t[i + 1] * h).toFixed(1)} ${x1.toFixed(1)},${y1.toFixed(1)}`;
+  }
+  return d;
+}
+// Light 3-hour weighted average (1-2-1), used for the dew point's 1-degree stair steps.
+const smooth3 = (v) => v.map((_, i) => (v[Math.max(0, i - 1)] + 2 * v[i] + v[Math.min(v.length - 1, i + 1)]) / 4);
+
 // ---- Week chart -----------------------------------------------------------
 // Two panels on one timeline: dew point (top) and chance of rain (bottom).
 let chartState = null;
@@ -991,15 +1051,14 @@ function renderChart() {
   const clip = svg("clipPath", { id: "dew-clip" });
   clip.append(svg("rect", { x: m.l, y: dewTop, width: pw, height: dewH }));
   defs.append(clip);
-  const tempPts = ps.map((p) => `${x(p.startD).toFixed(1)},${y(p.temp).toFixed(1)}`);
-  host.append(svg("polyline", { points: tempPts.join(" "), fill: "none", stroke: "var(--temp)", "stroke-opacity": 0.6, "stroke-width": 1.5, "stroke-linejoin": "round", "clip-path": "url(#dew-clip)" }));
-  const dewPts = ps.map((p) => `${x(p.startD).toFixed(1)},${y(p.dew).toFixed(1)}`);
-  host.append(svg("polyline", { points: dewPts.join(" "), fill: "none", stroke: "url(#dew-grad)", "stroke-width": 3, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+  host.append(svg("path", { d: smoothPath(ps.map((p) => [x(p.startD), y(p.temp)])), fill: "none", stroke: "var(--temp)", "stroke-opacity": 0.6, "stroke-width": 1.5, "clip-path": "url(#dew-clip)" }));
+  const dewS = smooth3(ps.map((p) => p.dew));
+  host.append(svg("path", { d: smoothPath(ps.map((p, i) => [x(p.startD), y(dewS[i])])), fill: "none", stroke: "url(#dew-grad)", "stroke-width": 3, "stroke-linecap": "round" }));
 
   // Label each day's highest dew point, so the trend reads without hovering.
   const placed = [];
   const mark = (p, above) => {
-    const cx = x(p.startD), cy = y(p.dew);
+    const cx = x(p.startD), cy = y(dewS[ps.indexOf(p)]);
     const tx = Math.min(Math.max(cx, m.l + 14), m.l + pw - 14);
     const ty = above ? Math.max(dewTop + 11, cy - 10) : Math.min(dewBottom - 5, cy + 19);
     if (placed.some(([px, py]) => Math.abs(px - tx) < 30 && Math.abs(py - ty) < 16)) return;
@@ -1027,17 +1086,13 @@ function renderChart() {
     t.textContent = `${v}%`;
     host.append(t);
   }
-  const bw = Math.max(1, Math.min(24, step - 1));
-  for (const p of ps) {
-    if (p.pop <= 0) continue;
-    const h = Math.max(1, (p.pop / 100) * rainH);
-    const bx = x(p.startD) - bw / 2;
-    const r = Math.min(2, bw / 2, h);
-    host.append(svg("path", {
-      d: `M${bx},${rainTop}V${rainTop + h - r}Q${bx},${rainTop + h} ${bx + r},${rainTop + h}H${bx + bw - r}Q${bx + bw},${rainTop + h} ${bx + bw},${rainTop + h - r}V${rainTop}Z`,
-      fill: "var(--drop)", "fill-opacity": p.pop >= 30 ? 1 : 0.45,
-    }));
-  }
+  // Rain as a smooth curtain hanging from the top; it turns solid past 30%.
+  const rg = svg("linearGradient", { id: "rain-grad", gradientUnits: "userSpaceOnUse", x1: 0, x2: 0, y1: rainTop, y2: rainBottom });
+  for (const [off, op] of [[0, 0.4], [0.3, 0.4], [0.3, 1], [1, 1]]) rg.append(svg("stop", { offset: off, style: `stop-color: var(--drop); stop-opacity: ${op}` }));
+  defs.append(rg);
+  const rainCurve = smoothPath(ps.map((p) => [x(p.startD), yr(p.pop)]));
+  host.append(svg("path", { d: `M${x(ps[0].startD).toFixed(1)},${rainTop}L${rainCurve.slice(1)}L${x(ps[ps.length - 1].startD).toFixed(1)},${rainTop}Z`, fill: "url(#rain-grad)" }));
+  host.append(svg("path", { d: rainCurve, fill: "none", stroke: "var(--drop)", "stroke-width": 1.5 }));
   // A small raindrop under each brief, marginal blip.
   for (const w of rainWindows(ps).filter(isBlip)) {
     const cx = x(w.peak.startD), cy = yr(w.peak.pop) + 10;
@@ -1075,14 +1130,19 @@ function renderChart() {
     const pt = svg("text", { x: m.l, y: presTop - 8, class: "axis-title" });
     pt.textContent = narrow ? "Pressure (inHg)" : "Pressure (inHg) · falling often brings rain, rising means clearing";
     host.append(pt);
-    // Faint: actual readings (with the daily tide). Solid: tide removed, the weather signal.
-    const pts = ps.filter((p) => Number.isFinite(p.pres)).map((p) => `${x(p.startD).toFixed(1)},${yp(p.pres).toFixed(1)}`);
-    host.append(svg("polyline", { points: pts.join(" "), fill: "none", stroke: "var(--ink-2)", "stroke-opacity": 0.3, "stroke-width": 1, "stroke-linejoin": "round" }));
+    // Average sea-level pressure, for a feel of the number.
+    if (29.92 > plo + 0.03 && 29.92 < phi - 0.03) {
+      host.append(svg("line", { x1: m.l, x2: m.l + pw, y1: yp(29.92), y2: yp(29.92), stroke: "var(--grid)", "stroke-width": 1, "shape-rendering": "crispEdges" }));
+      const at = svg("text", { x: m.l + pw, y: yp(29.92) - 3, "text-anchor": "end", class: "axis-title" });
+      at.textContent = "average 29.92";
+      host.append(at);
+    }
+    // Tide removed (12-hour average), drawn as a smooth curve.
     const sm = presSmooth(ps);
-    const spts = ps.map((p, i) => (Number.isFinite(sm[i]) && Number.isFinite(p.pres) ? `${x(p.startD).toFixed(1)},${yp(sm[i]).toFixed(1)}` : null)).filter(Boolean);
-    host.append(svg("polyline", { points: spts.join(" "), fill: "none", stroke: "var(--ink-2)", "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+    const spts = ps.map((p, i) => (Number.isFinite(sm[i]) && Number.isFinite(p.pres) ? [x(p.startD), yp(sm[i])] : null)).filter(Boolean);
+    host.append(svg("path", { d: smoothPath(spts), fill: "none", stroke: "var(--ink-2)", "stroke-width": 2, "stroke-linecap": "round" }));
     for (const { i, type } of presPivots(ps)) {
-      const v = ps[i].pres, cx = x(ps[i].startD), cy = yp(v), isLow = type === "L";
+      const v = ps[i].pres, cx = x(ps[i].startD), cy = yp(Number.isFinite(sm[i]) ? sm[i] : v), isLow = type === "L";
       host.append(svg("circle", { cx, cy, r: 3.5, fill: "var(--ink-2)", stroke: "var(--bg)", "stroke-width": 2 }));
       const t = svg("text", { x: Math.min(Math.max(cx, m.l + 22), m.l + pw - 22), y: isLow ? Math.max(presTop + 10, cy - 7) : Math.min(presBottom - 3, cy + 15), "text-anchor": "middle", class: "lbl" });
       t.textContent = `${type} ${v.toFixed(2)}`;
@@ -1094,7 +1154,7 @@ function renderChart() {
   const cross = svg("line", { y1: rainTop, y2: plotBottom, stroke: "var(--ink-3)", "stroke-width": 1, visibility: "hidden", "shape-rendering": "crispEdges" });
   const dotD = svg("circle", { r: 5, stroke: "var(--bg)", "stroke-width": 2, visibility: "hidden" });
   host.append(cross, dotD);
-  chartState = { ps, x, y, W, m, pw, cross, dotD, index: null, top: rainTop };
+  chartState = { ps, x, y, W, m, pw, cross, dotD, index: null, top: rainTop, dewS };
 }
 
 function showPoint(i) {
@@ -1106,7 +1166,7 @@ function showPoint(i) {
   const cx = s.x(p.startD);
   const b = bandOf(p.dew);
   s.cross.setAttribute("x1", cx); s.cross.setAttribute("x2", cx);
-  s.dotD.setAttribute("cx", cx); s.dotD.setAttribute("cy", s.y(p.dew));
+  s.dotD.setAttribute("cx", cx); s.dotD.setAttribute("cy", s.y(s.dewS[i]));
   s.dotD.setAttribute("fill", bandColor(b));
   for (const n of [s.cross, s.dotD]) n.setAttribute("visibility", "visible");
 
@@ -1119,7 +1179,7 @@ function showPoint(i) {
     el("div", { class: "row" }, key(bandColor(b)), el("b", {}, `${p.dew}°`), el("span", {}, `Dew point · ${BANDS[b].name}`)),
     el("div", { class: "row" }, key("var(--drop)", 8), el("b", {}, `${p.pop}%`), el("span", {}, "Chance of rain")),
     el("div", { class: "row" }, key("var(--temp)", 2), el("b", {}, `${p.temp}°`), el("span", {}, "Temperature")),
-    Number.isFinite(p.pres) ? el("div", { class: "row" }, key("var(--ink-2)", 2), el("b", {}, p.pres.toFixed(2)), el("span", {}, `in · ${presTrend(s.ps, i) || "steady"}`)) : null,
+    Number.isFinite(p.pres) ? el("div", { class: "row" }, key("var(--ink-2)", 2), el("b", {}, p.pres.toFixed(2)), el("span", {}, `in · ${presTrend(s.ps, i) || "steady"} · ${presWord(p.pres)}`)) : null,
     el("div", { class: "extra" }, p.text),
     el("div", { class: "extra" }, extras.join(" · ")),
   ].filter(Boolean));
@@ -1351,7 +1411,8 @@ function renderOutlook(ps) {
     el("p", { class: "eyebrow" }, title),
     el("ul", { class: "ol-lines" }, ...lines.map((l) => el("li", { class: l.quiet ? "quiet" : "" }, el("span", { class: "ol-when" }, l.when), el("span", {}, l.text)))));
   const pl = pressureLines(ps);
-  $("outlook").replaceChildren(group("Rain", rainLines(ps)), group("Nice weather", niceLines(ps)), ...(pl ? [group("Pressure", pl)] : []));
+  $("outlook").replaceChildren(group("Nice weather", niceLines(ps)));
+  $("details").replaceChildren(group("Rain", rainLines(ps)), ...(pl ? [group("Pressure", pl)] : []));
 }
 
 // ---- Start ----------------------------------------------------------------
