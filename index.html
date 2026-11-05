@@ -206,7 +206,7 @@ button svg { width: 14px; height: 14px; }
 .hours { list-style: none; margin: 0; padding: 0; }
 .hour {
   display: grid; align-items: center; gap: 0.75rem;
-  grid-template-columns: 3.5rem 1.75rem minmax(0, 1fr) 6.25rem 3rem minmax(0, 1.4fr);
+  grid-template-columns: 3.5rem 1.75rem minmax(0, 1fr) 7.75rem 3rem minmax(0, 1.4fr);
   min-height: 3rem; border-bottom: 1px solid var(--rule);
   font-variant-numeric: tabular-nums;
 }
@@ -214,25 +214,20 @@ button svg { width: 14px; height: 14px; }
 .sky { display: flex; align-items: center; gap: 0.3rem; }
 .sky svg { width: 28px; height: 28px; flex: none; }
 .rain { display: flex; align-items: center; gap: 0.45rem; }
-.rbar { flex: none; width: 2.75rem; height: 8px; border-radius: 4px; background: var(--rule); overflow: hidden; }
-.rbar i { display: block; height: 100%; border-radius: 4px; background: var(--drop); opacity: 0.45; }
+.rbar { flex: none; width: 4.25rem; height: 1px; }
 .rval { font-size: 0.8125rem; color: var(--ink-3); min-width: 2.2rem; }
-.rain.wet .rbar i { opacity: 1; }
 .rain.wet .rval { color: var(--rain); font-weight: 700; font-size: 0.9375rem; }
 .hour.wet { background: var(--accent-wash); }
 .rh { font-size: 0.8125rem; color: var(--ink-3); text-align: right; }
 .cols { color: var(--ink-3); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; min-height: 1.75rem; border-bottom: 1px solid var(--rule); }
 .cols .rh { font-size: inherit; }
 .desc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
-.track { --fixed: 5.6rem; display: flex; align-items: center; min-width: 0; }
-.lead { flex: 0 0 calc(var(--a) * (100% - var(--fixed))); }
-.pill {
-  flex: none; width: 3rem; text-align: center; border-radius: 999px;
-  padding: 0.15rem 0; font-weight: 600; font-size: 0.875rem;
-  background: var(--c); color: var(--ci);
-}
-.gap { flex: 0 0 calc(var(--b) * (100% - var(--fixed))); height: 2px; border-radius: 1px; background: var(--temp); opacity: 0.55; }
-.temp { flex: none; width: 2.6rem; padding-left: 0.35rem; color: var(--ink-2); font-weight: 500; font-size: 0.875rem; }
+.track { display: block; min-width: 0; height: 1px; }
+.hours { position: relative; }
+svg.hcurves { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+svg.hcurves text { font-family: var(--font); font-variant-numeric: tabular-nums; }
+.hpill { font-size: 13px; font-weight: 600; }
+.htemp { font-size: 13px; font-weight: 500; fill: var(--ink-2); }
 @media (max-width: 560px) {
   .hour { grid-template-columns: 3.25rem 1.75rem 5rem minmax(0, 1fr); gap: 0.5rem; }
   .desc, .rh { display: none; }
@@ -876,11 +871,9 @@ function renderHours(data) {
     const list = el("ol", { class: "hours" });
     for (const p of g.hours) {
       const b = bandOf(p.dew);
-      const a = (p.dew - minV) / span;
-      const gap = (p.temp - p.dew) / span;
       const wetHour = p.pop >= 30;
       const rainEl = el("span", { class: "rain" + (wetHour ? " wet" : ""), title: "Chance of rain" },
-        el("span", { class: "rbar" }, el("i", { style: `width: ${Math.min(100, p.pop)}%` })),
+        el("span", { class: "rbar" }),
         el("span", { class: "rval" }, el("span", { class: "sr" }, "Chance of rain "), p.pop >= 5 ? `${p.pop}%` : "–"));
       const rhEl = el("span", { class: "rh", title: "Humidity" }, p.rh === null ? "" : `${Math.round(p.rh)}%`);
       list.append(el("li", { class: "hour" + (wetHour ? " wet" : "") },
@@ -889,20 +882,19 @@ function renderHours(data) {
         el("span", { class: "desc" }, p.text),
         rainEl,
         rhEl,
-        el("span", { class: "track", style: `--a: ${a.toFixed(4)}; --b: ${Math.max(0, gap).toFixed(4)}` },
-          el("span", { class: "lead" }),
-          el("span", { class: "pill", style: `--c: ${bandColor(b)}; --ci: ${bandInk(b)}`, title: `Dew point ${p.dew}°, ${BANDS[b].name.toLowerCase()}` },
-            el("span", { class: "sr" }, "Dew point "), `${p.dew}°`),
-          el("span", { class: "gap" }),
-          el("span", { class: "temp", title: "Temperature" }, el("span", { class: "sr" }, "Temperature "), `${p.temp}°`),
-        ),
+        el("span", { class: "track", title: `Dew point ${p.dew}° (${BANDS[b].name.toLowerCase()}), temperature ${p.temp}°` },
+          el("span", { class: "sr" }, `Dew point ${p.dew}°, temperature ${p.temp}°`)),
       ));
     }
+    list._hours = g.hours;
     box.append(el("section", { class: "day" },
       el("h3", { class: "day-head" }, el("span", {}, g.label, data.niceKeys?.has(g.key) ? el("span", { class: "nice-tag" }, "Nice day") : null), el("span", {}, lo === hi ? `Dew point ${lo}°` : `Dew point ${lo}–${hi}°`)),
       list,
     ));
   });
+
+  hourScale = { minV, span };
+  drawHourCurves();
 
   const rest = groups.length - initial;
   const more = $("more");
@@ -912,9 +904,83 @@ function renderHours(data) {
 }
 $("more").addEventListener("click", () => { showAll = !showAll; if (current) renderHours(current); });
 
+// Hour-by-hour curves: each day's rows get one smooth rain profile and one smooth
+// dew point / temperature pair, drawn over the rows like the chart, with each hour's
+// dew point pill riding the curve.
+let hourScale = null;
+function drawHourCurves() {
+  if (!hourScale) return;
+  const { minV, span } = hourScale;
+  document.querySelectorAll("#hours ol.hours").forEach((list, li) => {
+    list.querySelector("svg.hcurves")?.remove();
+    const rows = [...list.children].filter((n) => n.classList.contains("hour"));
+    const hours = list._hours;
+    if (!rows.length || !hours || rows.length !== hours.length) return;
+    const lr = list.getBoundingClientRect();
+    const rb = rows[0].querySelector(".rbar").getBoundingClientRect();
+    const tr = rows[0].querySelector(".track").getBoundingClientRect();
+    const ys = rows.map((r) => r.offsetTop + r.offsetHeight / 2);
+    const rx0 = rb.left - lr.left, rw = rb.width;
+    const PILL = 34, TEMPW = 34;
+    const tx0 = tr.left - lr.left, usable = Math.max(20, tr.width - PILL - TEMPW - 10);
+    const xs = (v) => tx0 + PILL / 2 + ((v - minV) / span) * usable;
+    const g = svg("svg", { class: "hcurves", width: lr.width, height: list.offsetHeight, "aria-hidden": "true" });
+    const defs = svg("defs");
+    g.append(defs);
+
+    // Rain: light under 30%, solid above (same as the chart's curtain).
+    if (rw > 4) {
+      const rg = svg("linearGradient", { id: `hr-rain-${li}`, gradientUnits: "userSpaceOnUse", x1: rx0, x2: rx0 + rw, y1: 0, y2: 0 });
+      for (const [off, op] of [[0, 0.4], [0.3, 0.4], [0.3, 1], [1, 1]]) rg.append(svg("stop", { offset: off, style: `stop-color: var(--drop); stop-opacity: ${op}` }));
+      defs.append(rg);
+      const curve = smoothPath(hours.map((p, i) => [rx0 + (Math.min(100, p.pop) / 100) * rw, ys[i]]), true);
+      const y0 = ys[0], y1 = ys[ys.length - 1];
+      g.append(svg("path", { d: `M${rx0},${y0}L${curve.slice(1)}L${rx0},${y1}Z`, fill: `url(#hr-rain-${li})` }));
+      g.append(svg("path", { d: curve, fill: "none", stroke: "var(--drop)", "stroke-width": 1.5 }));
+      g.append(svg("line", { x1: rx0, x2: rx0, y1: y0, y2: y1, stroke: "var(--rule)", "stroke-width": 1 }));
+    }
+
+    // Dew point and temperature: shaded spread between two smooth curves.
+    const dewPts = hours.map((p, i) => [xs(p.dew), ys[i]]);
+    const tempPts = hours.map((p, i) => [xs(p.temp) + PILL / 2 + 2, ys[i]]);
+    const dewC = smoothPath(dewPts, true), tempC = smoothPath(tempPts, true);
+    const tempRev = smoothPath(tempPts.slice().reverse(), true);
+    g.append(svg("path", { d: `${dewC}L${tempRev.slice(1)}Z`, fill: "var(--temp)", "fill-opacity": 0.1 }));
+    g.append(svg("path", { d: tempC, fill: "none", stroke: "var(--temp)", "stroke-opacity": 0.6, "stroke-width": 1.5 }));
+    const dg = svg("linearGradient", { id: `hr-dew-${li}`, gradientUnits: "userSpaceOnUse", x1: xs(minV), x2: xs(minV + span), y1: 0, y2: 0 });
+    BANDS.forEach((b, i) => {
+      const from = i === 0 ? minV : BANDS[i - 1].below, to = Math.min(b.below, minV + span);
+      if (to <= minV || from >= minV + span) return;
+      for (const v of [Math.max(from, minV), to]) dg.append(svg("stop", { offset: ((v - minV) / span).toFixed(4), style: `stop-color: ${bandColor(i)}` }));
+    });
+    defs.append(dg);
+    g.append(svg("path", { d: dewC, fill: "none", stroke: `url(#hr-dew-${li})`, "stroke-width": 3, "stroke-linecap": "round" }));
+
+    // Each hour: the dew point pill on the curve, the temperature beside its line.
+    hours.forEach((p, i) => {
+      const b = bandOf(p.dew), [cx, cy] = dewPts[i];
+      g.append(svg("rect", { x: cx - PILL / 2, y: cy - 10, width: PILL, height: 20, rx: 10, fill: bandColor(b), stroke: "var(--bg)", "stroke-width": 2 }));
+      const t = svg("text", { x: cx, y: cy + 4.5, "text-anchor": "middle", class: "hpill", style: `fill: ${bandInk(b)}` });
+      t.textContent = `${p.dew}°`;
+      g.append(t);
+      const tt = svg("text", { x: tempPts[i][0] + 5, y: cy + 4.5, class: "htemp" });
+      tt.textContent = `${p.temp}°`;
+      g.append(tt);
+    });
+    list.append(g);
+  });
+}
+let hourFrame = 0;
+new ResizeObserver(() => { cancelAnimationFrame(hourFrame); hourFrame = requestAnimationFrame(drawHourCurves); }).observe($("hours"));
+
 // ---- Smooth lines -----------------------------------------------------------
 // A curve through the points that never overshoots them (monotone cubic, Fritsch–Carlson).
-function smoothPath(pts) {
+function smoothPath(pts, vertical = false) {
+  if (vertical) {
+    // Run the same curve with the axes swapped, then swap them back in the output.
+    const d = smoothPath(pts.map(([x, y]) => [y, x]));
+    return d.replace(/(-?[\d.]+),(-?[\d.]+)/g, "$2,$1");
+  }
   const n = pts.length;
   if (n < 2) return n ? `M${pts[0][0]},${pts[0][1]}` : "";
   const sl = [], t = new Array(n);

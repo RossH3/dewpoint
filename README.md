@@ -15,7 +15,7 @@ Bookmark it (⌘D) or, on a phone, use **Share → Add to Home Screen**.
 - **The next 7 days** as a chart: chance of rain across the top, hanging down like falling rain, then the dew point (colored by comfort band, each day's high labeled) with a light temperature line. Where the two lines meet, the air is saturated. Days, "Now" and marks at 6 AM, noon and 6 PM run along the top; weekends are shaded. Hover, or use the arrow keys, for any hour.
 - **Pressure:** a slim strip under the dew point with its own scale, marked with weather-map **H** and **L** at the turning points, plus a Pressure group in the outlook ("Friday afternoon · Low 29.78 in, then rising (clearing)").
 - **Radar:** a zoomable street map with the latest scan. **Play loop** animates the last 50 minutes. **State**, **Home**, **My location** and **Set home…** move the map and the nearby-rain check.
-- **Hour by hour:** sky, chance of rain, humidity, and the dew point joined to the temperature. Nice days get a "Nice day" tag.
+- **Hour by hour:** time, sky, humidity, and the same smooth style as the chart running down each day: a rain profile (light under 30%, solid above) beside the percentages, and the dew point curve with each hour's value riding it, next to the temperature curve with the spread shaded between. Nice days get a "Nice day" tag.
 
 Comfort bands: Dry (below 50°), Comfortable (50–59°), Sticky (60–64°), Muggy (65–69°), Oppressive (70–74°), Miserable (75° and up).
 
