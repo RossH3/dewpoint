@@ -155,6 +155,23 @@ button svg { width: 14px; height: 14px; }
 }
 .reading { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem 1rem; }
 .big { font-size: 4.25rem; font-weight: 600; line-height: 1; letter-spacing: -0.03em; }
+.now-side { margin: 0; display: grid; gap: 0.35rem; }
+.now-side div { display: grid; }
+.now-side dt { font-size: 0.75rem; color: var(--ink-3); }
+.now-side dd { margin: 0; font-size: 1.375rem; font-weight: 600; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.now-side dd small { font-size: 0.8125rem; font-weight: 400; color: var(--ink-3); }
+/* Nice number: a 1-10 for each day, and your own rating to tune it against. */
+.nice-days { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.15rem 0 0.5rem; padding: 0; list-style: none; }
+.nice-days li { display: grid; justify-items: center; min-width: 2.4rem; padding: 0.2rem 0.3rem; border: 1px solid var(--rule); border-radius: 6px; font-size: 0.75rem; color: var(--ink-3); }
+.nice-days li b { font-size: 1rem; color: var(--ink); font-variant-numeric: tabular-nums; }
+.nice-days li.good { border-color: var(--good); }
+.nice-days li.good b { color: var(--good); }
+.rate-label { margin: 0.25rem 0 0.3rem; font-size: 0.875rem; color: var(--ink-2); }
+.rate { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 0.2rem; max-width: 22rem; }
+.rate button { min-width: 0; height: 1.9rem; padding: 0; border-radius: 6px; font-size: 0.8125rem; font-variant-numeric: tabular-nums; }
+.rate button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 700; }
+.rate-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.75rem; margin-top: 0.4rem; font-size: 0.8125rem; color: var(--ink-3); }
+.rate-foot button { font-size: 0.8125rem; }
 .chip {
   display: inline-block; border-radius: 999px; padding: 0.3rem 0.8rem;
   font-weight: 600; font-size: 0.9375rem;
@@ -179,8 +196,8 @@ button svg { width: 14px; height: 14px; }
 .key-temp { background: var(--temp); height: 2px; opacity: 0.7; }
 .key-pres { background: var(--ink-2); height: 2px; }
 .key-weekend { width: 12px; height: 12px; border-radius: 2px; background: var(--weekend); box-shadow: inset 0 0 0 1px var(--rule); }
-.chart-wrap { position: relative; min-height: 436px; }
-@media (max-width: 519px) { .chart-wrap { min-height: 372px; } }
+.chart-wrap { position: relative; min-height: 466px; }
+@media (max-width: 519px) { .chart-wrap { min-height: 428px; } }
 .chart { display: block; width: 100%; touch-action: pan-y; border-radius: 4px; }
 .chart text { font-family: var(--font); font-size: 12px; fill: var(--ink-2); font-variant-numeric: tabular-nums; }
 .chart .lbl { fill: var(--ink); font-weight: 700; font-size: 13px; }
@@ -188,18 +205,23 @@ button svg { width: 14px; height: 14px; }
 .chart .day.wknd { font-weight: 700; }
 .chart .day.now { font-weight: 700; fill: var(--accent); }
 .chart .axis-title { fill: var(--ink-3); font-size: 11px; }
-/* Readout: one slim line pinned above the chart, never over the lines. */
-.tip {
-  position: absolute; left: 0; right: 0; bottom: 100%; pointer-events: none; z-index: 2;
-  display: flex; flex-wrap: wrap; align-items: center; gap: 0.15rem 0.9rem;
-  background: var(--bg); color: var(--ink); padding: 0.2rem 0; font-size: 0.8125rem;
+/* Readout: a fixed row above the chart. It always shows an hour (Now unless you point at
+   another), and every cell has a fixed width, so nothing shifts or pops in and out. */
+.readout {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.2rem 0; margin: 0 0 0.35rem;
+  font-size: 0.8125rem; line-height: 1.5rem; color: var(--ink-2); white-space: nowrap; min-height: 1.5rem;
 }
-.tip > * { margin: 0 !important; }
-.tip .when { color: var(--ink-3); font-size: 0.75rem; margin-bottom: 0.2rem; }
-.tip .row { display: flex; align-items: center; gap: 0.45rem; white-space: nowrap; }
-.tip .row b { font-weight: 700; font-variant-numeric: tabular-nums; min-width: 2.2em; }
-.tip .row span { color: var(--ink-2); }
-.tip .extra { color: var(--ink-3); font-size: 0.75rem; margin-top: 0.2rem; }
+.readout > span { display: inline-flex; align-items: center; gap: 0.4rem; flex: none; overflow: hidden; }
+.readout b { color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; }
+.readout .when { width: 8.75rem; font-weight: 700; color: var(--ink); }
+.readout .when.is-now { color: var(--accent); }
+.readout .c-dew { width: 9.25rem; } .readout .c-temp { width: 5.5rem; } .readout .c-rain { width: 5.5rem; }
+.readout .c-rh { width: 7.25rem; } .readout .c-pres { width: 8.75rem; }
+.readout .c-sky { flex: 1 1 8rem; min-width: 0; color: var(--ink-3); display: block; text-overflow: ellipsis; }
+@media (max-width: 719px) {
+  .readout .when { width: 100%; }
+  .readout .c-dew { width: 8.5rem; } .readout .c-pres, .readout .c-sky { display: none; }
+}
 
 /* Comfort scale */
 .scale { display: flex; flex-wrap: wrap; gap: 0.35rem 1.1rem; margin: 0; padding: 0; list-style: none; }
@@ -288,7 +310,8 @@ svg.hcurves text { font-family: var(--font); font-variant-numeric: tabular-nums;
 .ol-lines li.quiet .ol-when { color: var(--ink-3); }
 .key-blip { width: 8px; height: 11px; background: var(--drop); border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; clip-path: polygon(50% 0, 100% 60%, 100% 100%, 0 100%, 0 60%); }
 @media (max-width: 420px) { .ol-lines li { grid-template-columns: 7.5rem minmax(0, 1fr); } }
-.nice-tag { margin-left: 0.6rem; font-size: 0.75rem; font-weight: 600; color: var(--good); border: 1px solid currentColor; border-radius: 999px; padding: 0.05rem 0.5rem; vertical-align: 0.1em; }
+.nice-tag { margin-left: 0.6rem; font-size: 0.75rem; font-weight: 600; color: var(--ink-3); border: 1px solid currentColor; border-radius: 999px; padding: 0.05rem 0.5rem; vertical-align: 0.1em; }
+.nice-tag.good { color: var(--good); }
 .rain-near { margin: 0; color: var(--rain); font-weight: 600; min-height: 1.5em; }
 .rain-near.quiet, .radar-near.quiet { color: var(--ink-3); font-weight: 400; }
 .body-grid { display: grid; gap: 2rem; }
@@ -370,6 +393,10 @@ a { color: var(--accent); }
       <p class="eyebrow" id="now-label">Dew point right now</p>
       <div class="reading">
         <span class="big" id="now-dew">––°</span>
+        <dl class="now-side">
+          <div><dt>Temperature</dt><dd id="now-temp">–</dd></div>
+          <div><dt id="now-nice-label">Nice today</dt><dd id="now-nice">–</dd></div>
+        </dl>
       </div>
     </div>
     <div class="outlook-box hero-blocks">
@@ -405,8 +432,8 @@ a { color: var(--accent); }
       </div>
     </div>
     <div class="chart-wrap" id="chart-wrap">
+      <div class="readout" id="tip" aria-live="off"></div>
       <svg class="chart" id="chart" tabindex="0" role="img" aria-label="Chart of dew point and chance of rain for the next 7 days. Use the left and right arrow keys to step through the hours."></svg>
-      <div class="tip" id="tip" hidden></div>
     </div>
   </section>
 
@@ -452,8 +479,9 @@ a { color: var(--accent); }
 
   <footer>
     <p id="source">Forecast from the National Weather Service hourly forecast (api.weather.gov). No account or key needed.</p>
+    <p class="remember-foot">Humidity climbs at night as the air cools, even when the moisture in the air stays the same. The dew point is the steadier measure of how sticky it feels.</p>
     <p class="remember-foot">Pressure: low means air rising and spreading out, bringing clouds and rain. High means air sinking and packing down, keeping it clear and dry. Average is 29.92 in; most weather falls between 29.5 and 30.5.</p>
-    <p>Chart lines are drawn as smooth curves through the hourly values. The dew point also gets a light 3-hour average, and pressure a 12-hour average that removes its daily tide. Labels and the hourly list show the actual numbers.</p>
+    <p>Chart lines are drawn as smooth curves through the hourly values. Temperature gets a light 3-hour average, the dew point a slightly wider (5-hour, weighted) one, and pressure a 12-hour average that removes its daily tide. Labels, the readout and the hourly list show the actual numbers.</p>
     <p>Compare: <a id="link-nws" href="https://www.weather.gov/" target="_blank" rel="noopener">weather.gov hourly graph</a> · <a id="link-wx" href="https://weather.com/" target="_blank" rel="noopener">weather.com hourly</a></p>
   </footer>
 </main>
@@ -844,6 +872,7 @@ function render(data, warning) {
   // Right now
   $("now-dew").textContent = `${now.dew}°`;
   $("now-dew").title = `${BANDS[bandOf(now.dew)].name} (${BANDS[bandOf(now.dew)].range})`;
+  $("now-temp").replaceChildren(`${now.temp}°`, now.rh !== null && now.rh !== undefined ? el("small", {}, ` · ${Math.round(now.rh)}% humidity`) : "");
 
   // Footer source line
   $("source").textContent = data.source === "nws"
@@ -853,10 +882,17 @@ function render(data, warning) {
   $("link-wx").href = `https://weather.com/weather/hourbyhour/l/${PLACE.lat},${PLACE.lon}`;
   if (!PLACE.name && data.city) { PLACE.name = data.city; savePlace(); }
 
+  const nd = niceDays(ps);
+  logNiceScores(nd);
+  data.niceByKey = new Map(nd.map((d) => [d.key, d]));
+  const first = nd[0];
+  const firstName = first ? niceDayName(first) : "Today";
+  $("now-nice-label").textContent = firstName === "Today" || firstName === "Tomorrow" ? `Nice ${firstName.toLowerCase()}` : `Nice ${firstName}`;
+  $("now-nice").replaceChildren(first ? `${niceTen(first.score)}` : "–", first ? el("small", {}, " / 10") : "");
   renderOutlook(ps);
-  data.niceKeys = new Set(niceDays(ps).filter((d) => d.score >= NICE.nice).map((d) => d.key));
 
   renderChart();
+  hidePoint();
   renderHours(data);
   if (typeof updateNearbyRain === "function") updateNearbyRain();
 }
@@ -915,7 +951,7 @@ function renderHours(data) {
     }
     list._hours = g.hours;
     box.append(el("section", { class: "day" },
-      el("h3", { class: "day-head" }, el("span", {}, g.label, data.niceKeys?.has(g.key) ? el("span", { class: "nice-tag" }, "Nice day") : null), el("span", {}, lo === hi ? `Dew point ${lo}°` : `Dew point ${lo}–${hi}°`)),
+      el("h3", { class: "day-head" }, el("span", {}, g.label, niceTag(data.niceByKey?.get(g.key))), el("span", {}, lo === hi ? `Dew point ${lo}°` : `Dew point ${lo}–${hi}°`)),
       list,
     ));
   });
@@ -1151,8 +1187,9 @@ function renderChart() {
   const clip = svg("clipPath", { id: "dew-clip" });
   clip.append(svg("rect", { x: m.l, y: dewTop, width: pw, height: dewH }));
   defs.append(clip);
-  host.append(svg("path", { d: smoothPath(ps.map((p) => [x(p.startD), y(p.temp)])), fill: "none", stroke: "var(--temp)", "stroke-opacity": 0.6, "stroke-width": 1.5, "clip-path": "url(#dew-clip)" }));
-  const dewS = smooth3(ps.map((p) => p.dew));
+  const tempS = smooth3(ps.map((p) => p.temp));
+  host.append(svg("path", { d: smoothPath(ps.map((p, i) => [x(p.startD), y(tempS[i])])), fill: "none", stroke: "var(--temp)", "stroke-opacity": 0.6, "stroke-width": 1.5, "clip-path": "url(#dew-clip)" }));
+  const dewS = smooth3(smooth3(ps.map((p) => p.dew)));
   host.append(svg("path", { d: smoothPath(ps.map((p, i) => [x(p.startD), y(dewS[i])])), fill: "none", stroke: "url(#dew-grad)", "stroke-width": 3, "stroke-linecap": "round" }));
 
   // Label each day's highest dew point, so the trend reads without hovering.
@@ -1257,43 +1294,42 @@ function renderChart() {
   chartState = { ps, x, y, W, m, pw, cross, dotD, index: null, top: rainTop, dewS };
 }
 
-function showPoint(i) {
+// The readout row above the chart always shows one hour: Now, unless you're pointing at another.
+function showPoint(i, { mark = true } = {}) {
   const s = chartState;
   if (!s) return;
   i = Math.max(0, Math.min(s.ps.length - 1, i));
-  s.index = i;
   const p = s.ps[i];
-  const cx = s.x(p.startD);
   const b = bandOf(p.dew);
-  s.cross.setAttribute("x1", cx); s.cross.setAttribute("x2", cx);
-  s.dotD.setAttribute("cx", cx); s.dotD.setAttribute("cy", s.y(s.dewS[i]));
-  s.dotD.setAttribute("fill", bandColor(b));
-  for (const n of [s.cross, s.dotD]) n.setAttribute("visibility", "visible");
-
-  const tip = $("tip");
-  const key = (color, h = 3) => el("i", { class: "key", style: `background: ${color}; height: ${h}px; width: 12px` });
-  const extras = [];
-  if (p.rh !== null) extras.push(`${Math.round(p.rh)}% humidity`);
-  tip.replaceChildren(...[
-    el("div", { class: "when" }, i === 0 ? "Now" : `${fmt(p.startD, { weekday: "long" })} ${hourLabel(p.startD)}`),
-    el("div", { class: "row" }, key(bandColor(b)), el("b", {}, `${p.dew}°`), el("span", {}, `Dew point · ${BANDS[b].name}`)),
-    el("div", { class: "row" }, key("var(--drop)", 8), el("b", {}, `${p.pop}%`), el("span", {}, "Chance of rain")),
-    el("div", { class: "row" }, key("var(--temp)", 2), el("b", {}, `${p.temp}°`), el("span", {}, "Temperature")),
-    Number.isFinite(p.pres) ? el("div", { class: "row" }, key("var(--ink-2)", 2), el("b", {}, p.pres.toFixed(2)), el("span", {}, `in · ${presTrend(s.ps, i) || "steady"} · ${presWord(p.pres)}`)) : null,
-    el("div", { class: "extra" }, p.text),
-    el("div", { class: "extra" }, extras.join(" · ")),
-  ].filter(Boolean));
-  tip.hidden = false;
-  // On touch, the readout clears itself after a few seconds.
+  if (mark) {
+    s.index = i;
+    const cx = s.x(p.startD);
+    s.cross.setAttribute("x1", cx); s.cross.setAttribute("x2", cx);
+    s.dotD.setAttribute("cx", cx); s.dotD.setAttribute("cy", s.y(s.dewS[i]));
+    s.dotD.setAttribute("fill", bandColor(b));
+    for (const n of [s.cross, s.dotD]) n.setAttribute("visibility", "visible");
+  }
+  const key = (color, h = 3, w = 12) => el("i", { class: "key", style: `background: ${color}; height: ${h}px; width: ${w}px` });
+  const trend = Number.isFinite(p.pres) ? presTrend(s.ps, i) || "steady" : null;
+  $("tip").replaceChildren(
+    el("span", { class: "when" + (i === 0 ? " is-now" : "") }, i === 0 ? "Now" : `${fmt(p.startD, { weekday: "short" })} ${hourLabel(p.startD)}`),
+    el("span", { class: "c-dew", title: `Dew point · ${BANDS[b].name}` }, key(bandColor(b)), el("b", {}, `${p.dew}°`), BANDS[b].name),
+    el("span", { class: "c-temp", title: "Temperature" }, key("var(--temp)", 2), el("b", {}, `${p.temp}°`), "temp"),
+    el("span", { class: "c-rain", title: "Chance of rain" }, key("var(--drop)", 8, 6), el("b", {}, `${p.pop}%`), "rain"),
+    el("span", { class: "c-rh", title: "Relative humidity" }, p.rh === null || p.rh === undefined ? "" : el("b", {}, `${Math.round(p.rh)}%`), p.rh === null || p.rh === undefined ? "" : "humidity"),
+    el("span", { class: "c-pres", title: Number.isFinite(p.pres) ? `Pressure · ${presWord(p.pres)}` : "" }, Number.isFinite(p.pres) ? el("b", {}, p.pres.toFixed(2)) : "", trend || ""),
+    el("span", { class: "c-sky", title: p.text }, p.text),
+  );
+  // On touch, it goes back to Now after a few seconds.
   clearTimeout(tipTimer);
-  if (lastPointer === "touch") tipTimer = setTimeout(hidePoint, 4000);
+  if (mark && lastPointer === "touch") tipTimer = setTimeout(hidePoint, 4000);
 }
 function hidePoint() {
   const s = chartState;
-  $("tip").hidden = true;
   if (!s) return;
   for (const n of [s.cross, s.dotD]) n.setAttribute("visibility", "hidden");
   s.index = null;
+  showPoint(0, { mark: false });
 }
 function indexAt(clientX) {
   const s = chartState;
@@ -1320,7 +1356,7 @@ chartEl.addEventListener("keydown", (e) => {
 let resizeFrame = 0;
 new ResizeObserver(() => {
   cancelAnimationFrame(resizeFrame);
-  resizeFrame = requestAnimationFrame(() => { const i = chartState?.index; renderChart(); if (i !== null && i !== undefined) showPoint(i); });
+  resizeFrame = requestAnimationFrame(() => { const i = chartState?.index; renderChart(); if (i !== null && i !== undefined) showPoint(i); else hidePoint(); });
 }).observe($("chart-wrap"));
 
 // ---- Rain outlook: one line on when to think about rain ---------------------
@@ -1406,7 +1442,8 @@ function rainSummary(ps) {
   const w = wins.find((x) => x.start.startD - now < 72 * 36e5 && !isBlip(x));
   if (!w) {
     const later = wins.find((x) => !isBlip(x));
-    return { head: "Dry for the next 3 days", detail: later ? `Next chance ${dayPart(later.start.startD, now)} (${later.peak.pop}%)` : `Dry through ${fmt(ps[ps.length - 1].startD, { weekday: "long" })}` };
+    if (!later) return { head: `Dry through ${fmt(ps[ps.length - 1].startD, { weekday: "long" })}`, detail: "No rain in the 7-day forecast" };
+    return { head: "Dry for the next 3 days", detail: `Next chance ${dayPart(later.start.startD, now)} (${later.peak.pop}%)` };
   }
   const d = describeWindow(w, now);
   const hours = w.lastIdx - w.firstIdx + 1, start = w.start.startD;
@@ -1435,15 +1472,17 @@ function rainLines(ps) {
   });
   const lastSoon = soon[soon.length - 1];
   const after = lastSoon ? wins[wins.indexOf(lastSoon) + 1] : wins[0];
+  const allDry = !soon.length && !after;
   if (!soon.length) {
     const top = ps.filter((p) => p.startD - now < 72 * 36e5).reduce((m, p) => (p.pop > m.pop ? p : m), ps[0]);
-    lines.push({ when: "Next 3 days", text: top.pop >= 15 ? `Mostly dry, small chance ${dayPart(top.startD, now)} (${top.pop}%)` : "Dry" });
+    lines.push(top.pop >= 15 ? { when: "Next 3 days", text: `Mostly dry, small chance ${dayPart(top.startD, now)} (${top.pop}%)` }
+      : allDry ? { when: "Next 7 days", text: `Dry through ${fmt(last.startD, { weekday: "long" })}` } : { when: "Next 3 days", text: "Dry" });
   }
   if (blips.length) lines.push({ when: "Brief chances", quiet: true,
     text: blips.map((w) => `${fmt(w.peak.startD, { weekday: "short" })} ${hr12(w.peak.startD)} ${w.peak.pop}%`).join("  ·  ") });
-  lines.push(after
-    ? { when: "Then", text: `Dry until ${dayPart(after.start.startD, now)}` }
-    : { when: "Then", text: `Dry through ${fmt(last.startD, { weekday: "long" })}` });
+  if (after) lines.push(soon.length ? { when: "Then", text: `Dry until ${dayPart(after.start.startD, now)}` } : { when: "Next chance", text: `${cap(dayPart(after.start.startD, now))} (${after.peak.pop}%)` });
+  else if (soon.length) lines.push({ when: "Then", text: `Dry through ${fmt(last.startD, { weekday: "long" })}` });
+  else if (lines[0].when !== "Next 7 days") lines.push({ when: "Then", text: `Dry through ${fmt(last.startD, { weekday: "long" })}` });
   return lines;
 }
 
@@ -1489,16 +1528,25 @@ function niceDays(ps) {
     return { ...d, score: Math.round(score), high, dew, sunny };
   });
 }
+// "Today", "Tomorrow" or the weekday.
+function niceDayName(d, now = new Date()) {
+  const p = dayPart(new Date(d.d.getTime()), now);
+  if (p.startsWith("this ") || p === "tonight") return "Today";
+  if (p.startsWith("tomorrow")) return "Tomorrow";
+  return fmt(d.d, { weekday: "long" });
+}
+// The nice number: the day's 0-100 score as 1-10 (80 = 8 is "nice", 90 = 9 is "beautiful").
+const niceTen = (score) => Math.max(1, Math.min(10, Math.round(score / 10)));
+function niceTag(d) {
+  if (!d) return null;
+  const n = niceTen(d.score);
+  return el("span", { class: "nice-tag" + (d.score >= NICE.nice ? " good" : ""), title: "Nice number, 1 to 10" }, `Nice ${n}`);
+}
 function niceLines(ps) {
   const now = new Date();
   const days = niceDays(ps);
   const good = days.filter((d) => d.score >= NICE.nice);
-  const name = (d) => {
-    const p = dayPart(new Date(d.d.getTime()), now);
-    if (p.startsWith("this ") || p === "tonight") return "Today";
-    if (p.startsWith("tomorrow")) return "Tomorrow";
-    return fmt(d.d, { weekday: "long" });
-  };
+  const name = (d) => niceDayName(d, now);
   const short = (d) => { const n = name(d); return n === "Today" || n === "Tomorrow" ? n : fmt(d.d, { weekday: "short" }); };
   const describe = (ds) => {
     const hi = ds.map((d) => d.high), dw = ds.map((d) => d.dew);
@@ -1529,6 +1577,93 @@ function niceLines(ps) {
     };
   });
 }
+// ---- Your nice ratings -------------------------------------------------------
+// The page keeps its own score for each day (the last one made while that day's daytime hours
+// were still ahead), and you can give the day your own 1-10. Comparing the two is how we tune
+// the NICE numbers to you. Stored in this browser only; "Copy ratings" exports them.
+const NICE_LOG = "nicelog";
+const niceLog = () => store.get(NICE_LOG) || {};
+const ymd = (d) => { const [m, dd, y] = dayKey(d).split("/"); return `${y}-${m}-${dd}`; };
+function logNiceScores(days) {
+  if (!PLACE) return;
+  const log = niceLog();
+  for (const d of days) {
+    const k = `${ymd(d.d)}@${placeKey()}`;
+    const hrs = d.hours;
+    log[k] = { ...(log[k] || {}), date: ymd(d.d), place: PLACE.name || placeKey(), page: niceTen(d.score), score: d.score,
+      high: d.high, dew: d.dew, maxRain: Math.max(...hrs.map((p) => p.pop)), maxWind: Math.max(...hrs.map((p) => p.wind || 0)),
+      skies: [...new Set(hrs.map((p) => p.text))].join(" / "), hours: hrs.length };
+  }
+  // Keep about two months.
+  const keys = Object.keys(log).sort();
+  for (const k of keys.slice(0, Math.max(0, keys.length - 60))) delete log[k];
+  store.set(NICE_LOG, log);
+}
+function rateToday(n) {
+  const k = `${ymd(new Date())}@${placeKey()}`;
+  const log = niceLog();
+  log[k] = { ...(log[k] || { date: ymd(new Date()), place: PLACE.name || placeKey() }), mine: n, ratedAt: new Date().toISOString() };
+  store.set(NICE_LOG, log);
+  if (current) renderOutlook(current.periods);
+}
+async function copyRatings(btn) {
+  const rows = Object.values(niceLog()).filter((r) => r.mine).sort((a, b) => a.date.localeCompare(b.date));
+  const text = JSON.stringify({ nice: NICE, ratings: rows }, null, 1);
+  try { await navigator.clipboard.writeText(text); btn.textContent = "Copied"; }
+  catch { prompt("Copy your ratings:", text); }
+  setTimeout(() => { btn.textContent = "Copy ratings"; }, 2000);
+}
+function niceGroup(ps) {
+  const days = niceDays(ps);
+  const log = niceLog();
+  const todayK = `${ymd(new Date())}@${placeKey()}`;
+  const mine = log[todayK]?.mine;
+  const pageToday = log[todayK]?.page;
+  const rated = Object.values(log).filter((r) => r.mine).length;
+  const chips = el("ul", { class: "nice-days", "aria-label": "Nice number by day" }, ...days.map((d) => {
+    const nm = niceDayName(d);
+    return el("li", { class: d.score >= NICE.nice ? "good" : "", title: `${nm}: ${niceTen(d.score)} of 10 (score ${d.score})` },
+      nm === "Today" ? "Today" : fmt(d.d, { weekday: "short" }), el("b", {}, String(niceTen(d.score))));
+  }));
+  const buttons = el("div", { class: "rate", role: "group", "aria-label": "Your rating for today, 1 to 10" },
+    ...Array.from({ length: 10 }, (_, i) => {
+      const b = el("button", { type: "button", "aria-pressed": String(mine === i + 1) }, String(i + 1));
+      b.addEventListener("click", () => rateToday(i + 1));
+      return b;
+    }));
+  const copy = el("button", { type: "button", class: "linkish" }, "Copy ratings");
+  copy.addEventListener("click", () => copyRatings(copy));
+  return el("div", { class: "ol-group" },
+    el("p", { class: "eyebrow" }, "Nice number"),
+    chips,
+    el("p", { class: "rate-label" }, mine ? `You rated today ${mine}${pageToday ? `; the page said ${pageToday}` : ""}.` : `How nice was today, for you?${pageToday ? ` The page said ${pageToday}.` : ""}`),
+    buttons,
+    el("p", { class: "rate-foot" }, `${rated} day${rated === 1 ? "" : "s"} rated`, rated ? copy : ""));
+}
+
+// ---- Humidity --------------------------------------------------------------
+// Relative humidity swings with temperature every day, so the useful numbers are now,
+// the afternoon lows and the overnight highs.
+function humidityLines(ps) {
+  const hp = ps.filter((p) => Number.isFinite(p.rh));
+  if (hp.length < 12) return null;
+  const now = new Date();
+  const hr = (p) => +fmt(p.startD, { hour: "numeric", hourCycle: "h23" });
+  const next = hp.filter((p) => p.startD - now < 72 * 36e5);
+  const byDay = (pick, test) => {
+    const m = new Map();
+    for (const p of next) if (test(hr(p))) { const k = dayKey(p.startD); m.set(k, m.has(k) ? pick(m.get(k), p.rh) : p.rh); }
+    return [...m.values()].map(Math.round);
+  };
+  const range = (a) => (Math.min(...a) === Math.max(...a) ? `${a[0]}%` : `${Math.min(...a)}–${Math.max(...a)}%`);
+  const lows = byDay(Math.min, (h) => h >= 12 && h <= 18), highs = byDay(Math.max, (h) => h <= 8);
+  const lines = [{ when: "Now", text: `${Math.round(hp[0].rh)}%` }];
+  if (lows.length) lines.push({ when: "Afternoons", text: `${range(lows)} (next 3 days)` });
+  if (highs.length) lines.push({ when: "Overnight", text: range(highs) });
+  lines.push({ when: "Remember", quiet: true, cls: "remember", text: "Humidity climbs at night as the air cools, even when the moisture in the air stays the same. The dew point is the steadier measure of how sticky it feels." });
+  return lines;
+}
+
 function renderOutlook(ps) {
   const group = (title, lines) => el("div", { class: "ol-group" },
     el("p", { class: "eyebrow" }, title),
@@ -1540,7 +1675,8 @@ function renderOutlook(ps) {
   const rain = rainSummary(ps);
   $("rain-head").textContent = rain.head;
   $("rain-detail").textContent = rain.detail;
-  $("details").replaceChildren(group("Rain", rainLines(ps)), ...(pl ? [group("Pressure", pl)] : []));
+  const hl = humidityLines(ps);
+  $("details").replaceChildren(group("Rain", rainLines(ps)), ...(hl ? [group("Humidity", hl)] : []), ...(pl ? [group("Pressure", pl)] : []), niceGroup(ps));
 }
 
 // ---- Start ----------------------------------------------------------------
@@ -1875,11 +2011,24 @@ async function analyzeNearby([lat, lon]) {
   for (let y = 0; y < W && !nx && !ny; y++) for (let x = 0; x < W; x++) {
     if (now[y * W + x] >= RAIN_DBZ && (x - hx) ** 2 + (y - hy) ** 2 === best) { nx = x; ny = y; break; }
   }
+  // Over home: how much of the 3 km around it shows rain, and how strong. A few light pixels
+  // nearby isn't "raining here"; it's often drizzle that dries up before it lands, or birds and
+  // bugs the radar picks up at night.
+  const rPx = 3000 / metersPerPx;
+  let inR = 0, wet = 0, peak = 0;
+  for (let y = Math.floor(hy - rPx); y <= Math.ceil(hy + rPx); y++) for (let x = Math.floor(hx - rPx); x <= Math.ceil(hx + rPx); x++) {
+    if (x < 0 || y < 0 || x >= W || y >= W || (x - hx) ** 2 + (y - hy) ** 2 > rPx * rPx) continue;
+    inR++;
+    const v = now[y * W + x];
+    if (v >= RAIN_DBZ) { wet++; if (v > peak) peak = v; }
+  }
+  const cover = inR ? wet / inR : 0;
   Object.assign(result, {
-    state: distKm <= 1.5 ? "here" : "near",
+    state: distKm <= 1.5 && cover >= 0.25 ? "here" : "near",
     distMi: distKm / 1.609,
     from: compass(Math.atan2(nx - hx, hy - ny) * 180 / Math.PI),
-    intensity: intensityName(bestV),
+    intensity: intensityName(distKm <= 1.5 ? Math.max(peak, bestV) : bestV),
+    cover, peak: Math.max(peak, distKm <= 1.5 ? bestV : 0),
   });
 
   // Motion: shift the field from 30 minutes ago to best match the latest one (3 km cells).
@@ -1974,6 +2123,13 @@ function describeNearby(r) {
   const motion = r.mph === undefined ? "" : r.mph < 5 ? " It's barely moving." : ` Moving ${r.toward} at about ${Math.round(r.mph / 5) * 5 || 5} mph.`;
   const spot = spotName(), at = spot === "you" ? "where you are" : spot === "home" ? "at home" : `in ${spot}`;
   const of = spot === "you" ? "of you" : `of ${spot}`;
+  // Light echoes close by while the forecast is dry: say what it probably is, not "raining".
+  const ps = (typeof current !== "undefined" && current) ? current.periods.slice(0, 3) : [];
+  const forecastDry = ps.length && Math.max(...ps.map((p) => p.pop)) < 15;
+  if ((r.state === "here" || r.distMi < 3) && r.peak < 30 && forecastDry) {
+    r.quiet = true;
+    return `Light echoes on radar ${spot === "you" ? "near you" : at === "at home" ? "near home" : `over ${spot}`}, but the forecast is dry. Probably not reaching the ground.`;
+  }
   if (r.state === "here") return `Raining ${at} now (${r.intensity}).` + motion;
   if (r.state === "near" && r.distMi <= 60) {
     const d = r.distMi < 2 ? "Rain about a mile" : `Rain ${Math.round(r.distMi)} mi`;
@@ -2167,7 +2323,7 @@ async function updateNearbyRain(force = false) {
     radar.motion = r.vel || null;
     radar.flow = r.flow || null;
     const text = describeNearby(r);
-    const quiet = !(r.state === "here" || (r.state === "near" && r.distMi <= 60));
+    const quiet = r.quiet || !(r.state === "here" || (r.state === "near" && r.distMi <= 60));
     for (const id of ["radar-near", "rain-near"]) {
       $(id).textContent = text;
       $(id).classList.toggle("quiet", quiet);
