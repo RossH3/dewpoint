@@ -10,9 +10,9 @@ Bookmark it (⌘D) or, on a phone, use **Share → Add to Home Screen**.
 
 ## What it shows
 
-- **Dew point right now**, beside two matching blocks: **Next rain** ("Tonight, 9 PM–6 AM · Rain likely, up to 95%", with the nearby-radar line under it) and **Next nice weather** ("Saturday – Tuesday · Beautiful · Sunny, highs 68–71°, dew points 45–53°").
-- **Details:** rain stretches in the next 3 days, brief chances, when it dries out, and pressure highs and lows with a plain reminder of what they mean. On wide screens (1200 px and up) the details sit in a column beside the chart and stay in view as you scroll; on smaller screens they follow the chart.
-- **The next 7 days** as a chart: chance of rain across the top, hanging down like falling rain, then the dew point (colored by comfort band, each day's high labeled) with a light temperature line. Where the two lines meet, the air is saturated. Days, "Now" and marks at 6 AM, noon and 6 PM run along the top; weekends are shaded. Hover, or use the arrow keys, for any hour.
+- **Dew point right now**, with the temperature, humidity and the **nice number** (1–10) for today or tomorrow beside it, then two matching blocks: **Next rain** ("Tonight, 9 PM–6 AM · Rain likely, up to 95%", with the nearby-radar line under it) and **Next nice weather** ("Saturday – Tuesday · Beautiful · Sunny, highs 68–71°, dew points 45–53°").
+- **Details:** rain stretches in the next 3 days, brief chances, when it dries out; humidity now, afternoon lows and overnight highs; pressure highs and lows with a plain reminder of what they mean; and the nice number for each day, with buttons to rate today yourself. On wide screens (1200 px and up) the details sit in a column beside the chart and stay in view as you scroll; on smaller screens they follow the chart.
+- **The next 7 days** as a chart: chance of rain across the top, hanging down like falling rain, then the dew point (colored by comfort band, each day's high labeled) with a light temperature line. Where the two lines meet, the air is saturated. Days, "Now" and marks at 6 AM, noon and 6 PM run along the top; weekends are shaded. A readout row above the chart always shows one hour (Now by default): dew point, temperature, rain chance, humidity, pressure and sky. Hover, tap, or use the arrow keys for any other hour; it goes back to Now when you leave.
 - **Pressure:** a slim strip under the dew point with its own scale, marked with weather-map **H** and **L** at the turning points, plus a Pressure group in the outlook ("Friday afternoon · Low 29.78 in, then rising (clearing)").
 - **Radar:** a zoomable street map with the latest scan. **Play loop** animates the last 50 minutes. **State**, **Home**, **My location** and **Set home…** move the map and the nearby-rain check.
 - **Hour by hour:** time, sky, humidity, and the same smooth style as the chart running down each day: a rain profile (light under 30%, solid above) beside the percentages, and the dew point curve with each hour's value riding it, next to the temperature curve with the spread shaded between. Nice days get a "Nice day" tag.
@@ -27,11 +27,15 @@ Sea-level pressure comes from Open-Meteo, because the NWS hourly forecast doesn'
 
 ## Smoothing
 
-Chart lines are drawn as smooth curves through the hourly values (a monotone cubic, which never overshoots the real numbers). The dew point also gets a light 3-hour average to remove its 1-degree stair steps, and pressure a 12-hour average that removes its daily tide. Rain chance is drawn as a curtain through the actual hourly values, solid past 30%. Labels, the tooltip and the hourly list always show the actual numbers.
+Chart lines are drawn as smooth curves through the hourly values (a monotone cubic, which never overshoots the real numbers). Temperature gets a light 3-hour average (1-2-1 weights), the dew point a slightly wider 5-hour one (1-4-6-4-1, the 3-hour average applied twice) to remove its 1-degree stair steps, and pressure a 12-hour average that removes its daily tide. These live in `renderChart` (`tempS`, `dewS`). Rain chance is drawn as a curtain through the actual hourly values, solid past 30%. Labels, the tooltip and the hourly list always show the actual numbers.
 
 ## The nice meter
 
 Each daytime hour (10 AM–6 PM) starts at 100 points and loses points for temperatures outside 62–80°, dew points above 60° or below 25°, rain chances above 10%, clouds, fog or storms, and wind over 15 mph. A day's score is the average of those hours: 80+ is nice, 90+ is beautiful. The numbers are in the `NICE` object in `index.html`.
+
+The **nice number** is that score on a 1–10 scale (score ÷ 10, rounded; 8 is nice, 9 is beautiful). It shows at the top, on each day in the hourly list, and as a row of day chips in the details.
+
+**Rating days.** Under the chips, tap 1–10 for how nice today felt to you. The page keeps, per place and day, its own number (the last one it made while that day's daytime hours were still ahead), the day's high, dew point, top rain chance, wind and skies, plus your rating. It's stored in this browser only (about two months). **Copy ratings** puts all rated days and the current `NICE` settings on the clipboard as JSON: paste that into a session to retune the formula to you.
 
 ## How the radar works
 
@@ -41,7 +45,7 @@ Radar tiles come as colored images. Each color maps to one rain intensity (dBZ) 
 2. **Morph.** A single canvas over the map draws in-between moments about 30 times a second. For a moment partway between two scans, each pixel looks back along its patch's motion into the earlier scan and ahead into the later one, and blends the two. Storms moving different ways each move on their own, and rain that grows or fades blends smoothly.
 3. **Fallbacks.** Panning, zooming or pausing switches back to the crisp tiles. Very wide views, and devices set to reduce motion, use a simpler drift-and-crossfade.
 
-For the nearby-rain line, the page reads the radar around home (about 240 miles across) for the latest scan and the one 30 minutes earlier. It finds the nearest rain of 20 dBZ or more, then slides the older scan to find the shift that best matches the newer one. That shift gives direction and speed, and an arrival time if the rain is headed your way.
+For the nearby-rain line, the page reads the radar around home (about 240 miles across) for the latest scan and the one 30 minutes earlier. It finds the nearest rain of 20 dBZ or more. It only says "Raining at home now" when at least a quarter of the 3 km around home shows rain. If the echoes close by are light (under 30 dBZ) and the forecast for the next 3 hours is under 15%, it says "Light echoes on radar … but the forecast is dry. Probably not reaching the ground." instead: that's usually drizzle drying up before it lands, or birds and bugs the radar sees at night, especially close to the Columbia radar. To get motion, it slides the older scan to find the shift that best matches the newer one. That shift gives direction and speed, and an arrival time if the rain is headed your way.
 
 ## Data
 
