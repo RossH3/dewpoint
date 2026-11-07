@@ -160,6 +160,7 @@ button svg { width: 14px; height: 14px; }
 .now-side dt { font-size: 0.75rem; color: var(--ink-3); }
 .now-side dd { margin: 0; font-size: 1.375rem; font-weight: 600; line-height: 1.2; font-variant-numeric: tabular-nums; }
 .now-side dd small { font-size: 0.8125rem; font-weight: 400; color: var(--ink-3); }
+.now-side dd small.now-high { display: block; }
 /* Nice number: a 1-10 for each day, and your own rating to tune it against. */
 .nice-days { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.15rem 0 0.5rem; padding: 0; list-style: none; }
 .nice-days li { display: grid; justify-items: center; min-width: 2.4rem; padding: 0.2rem 0.3rem; border: 1px solid var(--rule); border-radius: 6px; font-size: 0.75rem; color: var(--ink-3); }
@@ -201,6 +202,7 @@ button svg { width: 14px; height: 14px; }
 .chart { display: block; width: 100%; touch-action: pan-y; border-radius: 4px; }
 .chart text { font-family: var(--font); font-size: 12px; fill: var(--ink-2); font-variant-numeric: tabular-nums; }
 .chart .lbl { fill: var(--ink); font-weight: 700; font-size: 13px; }
+.chart .tlbl { fill: var(--temp); font-weight: 600; font-size: 12px; }
 .chart .day { fill: var(--ink); font-weight: 600; font-size: 12.5px; }
 .chart .day.wknd { font-weight: 700; }
 .chart .day.now { font-weight: 700; fill: var(--accent); }
@@ -872,7 +874,15 @@ function render(data, warning) {
   // Right now
   $("now-dew").textContent = `${now.dew}°`;
   $("now-dew").title = `${BANDS[bandOf(now.dew)].name} (${BANDS[bandOf(now.dew)].range})`;
-  $("now-temp").replaceChildren(`${now.temp}°`, now.rh !== null && now.rh !== undefined ? el("small", {}, ` · ${Math.round(now.rh)}% humidity`) : "");
+  // The high still ahead: today's until mid-afternoon, then tomorrow's.
+  const hrNow = +fmt(now.startD, { hour: "numeric", hourCycle: "h23" });
+  const nextDay = ps.find((p) => dayKey(p.startD) !== dayKey(now.startD));
+  const highDay = hrNow < 15 || !nextDay ? dayKey(now.startD) : dayKey(nextDay.startD);
+  const highPs = ps.filter((p) => dayKey(p.startD) === highDay);
+  const high = highPs.length ? Math.max(...highPs.map((p) => p.temp)) : null;
+  $("now-temp").replaceChildren(`${now.temp}°`,
+    now.rh !== null && now.rh !== undefined ? el("small", {}, ` · ${Math.round(now.rh)}% humidity`) : "",
+    high !== null ? el("small", { class: "now-high" }, `High ${high}° ${highDay === dayKey(now.startD) ? "today" : "tomorrow"}`) : "");
 
   // Footer source line
   $("source").textContent = data.source === "nws"
@@ -1078,7 +1088,13 @@ function renderChart() {
   const W = Math.max(280, $("chart-wrap").clientWidth);
   const narrow = W < 520;
   const m = { t: 0, r: 14, l: 42 };
-  const dewH = narrow ? 150 : 190, gapH = 30, rainH = narrow ? 56 : 68;
+  // Scale: fits the dew point and the full temperature range, so afternoon highs never get cut off.
+  const dews = ps.map((p) => p.dew), temps = ps.map((p) => p.temp);
+  let lo = Math.floor((Math.min(...dews) - 3) / 10) * 10;
+  let hi = Math.ceil((Math.max(...dews, ...temps) + 4) / 10) * 10;
+  if (hi - lo < 20) hi = lo + 20;
+  // A wider range gets a little more height so the dew point line doesn't flatten out.
+  const dewH = Math.round((narrow ? 150 : 190) * Math.min(1.35, Math.max(1, (hi - lo) / 40))), gapH = 30, rainH = narrow ? 56 : 68;
   // Top to bottom: day labels, time-of-day marks, rain (hanging down), dew point.
   const hasPres = ps.filter((p) => Number.isFinite(p.pres)).length > ps.length * 0.8;
   const presGap = 28, presH = narrow ? 46 : 56;
@@ -1093,11 +1109,6 @@ function renderChart() {
 
   const t0 = ps[0].startD.getTime(), t1 = ps[ps.length - 1].startD.getTime();
   const x = (d) => m.l + ((d.getTime() - t0) / Math.max(1, t1 - t0)) * pw;
-  const dews = ps.map((p) => p.dew);
-  let lo = Math.floor((Math.min(...dews) - 3) / 10) * 10;
-  let hi = Math.ceil((Math.max(...dews) + 3) / 10) * 10;
-  if (hi - lo < 20) hi = lo + 20;
-  hi = Math.min(hi + 10, Math.max(hi, Math.ceil(Math.max(...ps.map((p) => p.temp)) / 10) * 10));
   const y = (v) => dewTop + (1 - (v - lo) / (hi - lo)) * dewH;
   const yr = (pct) => rainTop + (pct / 100) * rainH;
   const step = ps.length > 1 ? pw / (ps.length - 1) : pw;
@@ -1187,8 +1198,8 @@ function renderChart() {
   const clip = svg("clipPath", { id: "dew-clip" });
   clip.append(svg("rect", { x: m.l, y: dewTop, width: pw, height: dewH }));
   defs.append(clip);
-  const tempS = smooth3(ps.map((p) => p.temp));
-  host.append(svg("path", { d: smoothPath(ps.map((p, i) => [x(p.startD), y(tempS[i])])), fill: "none", stroke: "var(--temp)", "stroke-opacity": 0.6, "stroke-width": 1.5, "clip-path": "url(#dew-clip)" }));
+  const tempS = smooth3(temps);
+  host.append(svg("path", { d: smoothPath(ps.map((p, i) => [x(p.startD), y(tempS[i])])), fill: "none", stroke: "var(--temp)", "stroke-opacity": 0.75, "stroke-width": 1.5, "clip-path": "url(#dew-clip)" }));
   const dewS = smooth3(smooth3(ps.map((p) => p.dew)));
   host.append(svg("path", { d: smoothPath(ps.map((p, i) => [x(p.startD), y(dewS[i])])), fill: "none", stroke: "url(#dew-grad)", "stroke-width": 3, "stroke-linecap": "round" }));
 
@@ -1214,6 +1225,20 @@ function renderChart() {
     mark(top, true);
   }
   mark(minP, false);
+  // Each day's high temperature, in the temperature line's gray, just above its peak.
+  for (const d of days) {
+    if (d.last - d.first < 5 || x(ps[d.last].startD) - x(ps[d.first].startD) < 30) continue;
+    let ti = d.first;
+    for (let i = d.first; i <= d.last; i++) if (ps[i].temp > ps[ti].temp) ti = i;
+    if (ti === d.first || ti === d.last) continue;   // the day's edge isn't its real high
+    const cx = x(ps[ti].startD), cy = y(tempS[ti]);
+    const tx = Math.min(Math.max(cx, m.l + 14), m.l + pw - 14), ty = Math.max(dewTop + 11, cy - 7);
+    if (placed.some(([px, py]) => Math.abs(px - tx) < 30 && Math.abs(py - ty) < 16)) continue;
+    placed.push([tx, ty]);
+    const t = svg("text", { x: tx, y: ty, "text-anchor": "middle", class: "tlbl" });
+    t.textContent = `${ps[ti].temp}°`;
+    host.append(t);
+  }
 
   // Rain panel
   host.append(svg("line", { x1: m.l, x2: m.l + pw, y1: yr(50), y2: yr(50), stroke: "var(--grid)", "stroke-width": 1, "shape-rendering": "crispEdges" }));
@@ -1814,6 +1839,8 @@ if (!PLACE) {
 const IEM = "https://mesonet.agron.iastate.edu";
 const DATA_Z = 8;                 // the mosaic's native detail is about zoom 8 (~0.5 km per pixel)
 const RAIN_DBZ = 20;              // treat 20 dBZ and up as rain for distance and motion
+const NEAR_MIN_PX = 16;           // nearby-rain check ignores rain patches smaller than ~4 km²
+const NEAR_ALERT_MI = 25;         // rain closer than this (or headed your way) gets the blue line
 const OFFSETS = [50, 45, 40, 35, 30, 25, 20, 15, 10, 5, 0]; // minutes before the latest scan
 // Frames are fetched by exact scan time (ridge::USCOMP-N0Q-YYYYMMDDHHMM), so they never repeat or
 // arrive out of order. Before the scan time is known, fall back to the relative "minutes ago" layers.
@@ -1993,12 +2020,26 @@ async function analyzeNearby([lat, lon]) {
   const [now, prev] = await Promise.all([mosaic(layerAt(0)), mosaic(layerAt(30))]);
   if (!now) throw new Error("Radar tiles unavailable");
 
+  // Only rain that's part of a real area counts: at least NEAR_MIN_PX rain pixels (about 4 km²)
+  // in the ~4.5 km square around it. Scattered specks far off don't make a "rain nearby" line.
+  const S = new Uint32Array((W + 1) * (W + 1));
+  for (let y = 0; y < W; y++) {
+    let row = 0;
+    for (let x = 0; x < W; x++) {
+      row += now[y * W + x] >= RAIN_DBZ ? 1 : 0;
+      S[(y + 1) * (W + 1) + x + 1] = S[y * (W + 1) + x + 1] + row;
+    }
+  }
+  const areaAt = (x, y, r = 4) => {
+    const x0 = Math.max(0, x - r), y0 = Math.max(0, y - r), x1 = Math.min(W, x + r + 1), y1 = Math.min(W, y + r + 1);
+    return S[y1 * (W + 1) + x1] - S[y0 * (W + 1) + x1] - S[y1 * (W + 1) + x0] + S[y0 * (W + 1) + x0];
+  };
   // Nearest rain, and a sample of rain points for the arrival estimate.
   let best = Infinity, bestV = 0;
   const pts = [];
   for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) {
     const v = now[y * W + x];
-    if (v < RAIN_DBZ) continue;
+    if (v < RAIN_DBZ || areaAt(x, y) < NEAR_MIN_PX) continue;
     const d2 = (x - hx) ** 2 + (y - hy) ** 2;
     if (d2 < best) { best = d2; bestV = v; }
     if (!(x % 2) && !(y % 2)) pts.push(x, y);
@@ -2009,7 +2050,7 @@ async function analyzeNearby([lat, lon]) {
   // Bearing from home to the nearest rain (screen y points south).
   let nx = 0, ny = 0;
   for (let y = 0; y < W && !nx && !ny; y++) for (let x = 0; x < W; x++) {
-    if (now[y * W + x] >= RAIN_DBZ && (x - hx) ** 2 + (y - hy) ** 2 === best) { nx = x; ny = y; break; }
+    if (now[y * W + x] >= RAIN_DBZ && (x - hx) ** 2 + (y - hy) ** 2 === best && areaAt(x, y) >= NEAR_MIN_PX) { nx = x; ny = y; break; }
   }
   // Over home: how much of the 3 km around it shows rain, and how strong. A few light pixels
   // nearby isn't "raining here"; it's often drizzle that dries up before it lands, or birds and
@@ -2135,6 +2176,8 @@ function describeNearby(r) {
     const d = r.distMi < 2 ? "Rain about a mile" : `Rain ${Math.round(r.distMi)} mi`;
     let s = `${d} ${r.from} ${of} (${r.intensity}).` + motion;
     if (r.etaMin !== undefined && r.valid) s += ` Could reach you around ${clock(new Date(r.valid.getTime() + r.etaMin * 60000))}.`;
+    // Blue only when it matters: close by, or on its way. Farther rain is still mentioned, in gray.
+    if (r.distMi > NEAR_ALERT_MI && r.etaMin === undefined) r.quiet = true;
     return s;
   }
   return `No rain on radar within 60 miles ${of}.`;
